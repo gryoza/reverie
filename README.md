@@ -21,13 +21,13 @@ It delivers an authentic Steam Frame OS working out-of-the-box. Any extra launch
 
 ## Overview
 
-**Reverie OS** is not a standalone "From Scratch" image. It's a combination of different projects alongside my own code squeezed into a SteamOS build
+**Reverie OS** is not a standalone "From Scratch" image. It's a combination of different projects alongside my own code squeezed into a SteamOS build.
 
 ---
 
 ## Device Compatibility
 
-Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen 2)** other devices are supported via ROCKNIX device tree and currently are in experimental state waiting for someone to try them out. If you test one of them and encounter issues, share your logs and I will be happy to fix them!
+Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen 2)**. Other devices are supported via ROCKNIX device trees and currently are in an experimental state waiting for someone to try them out. If you test one of them and encounter issues, share your logs and I will be happy to fix them!
 
 | Manufacturer | Device Model | SoC / Platform | Status | Hardware Notes |
 | :--- | :--- | :--- | :---: | :--- |
@@ -46,6 +46,7 @@ Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 | **Retroid** | **Pocket Flip 2** | Snapdragon 865 (SM8250) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **KONKR** | **Pocket FIT** | Snapdragon 8 Gen 3 (SM8650) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **KONKR** | **Pocket FIT Elite** | Snapdragon 8 Elite (SM8750) | 🟡 *Supported (Target)* | Compatible via ROCKNIX ABL device tree. |
+
 ---
 
 ## Key Features
@@ -58,13 +59,13 @@ Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 * **Reverie Power (Decky Loader Plugin)**:
   Dedicated handheld power management engineered specifically for Snapdragon:
   * **TDP & Frequencies**: Adjust CPU cluster governors, CPU limits, and Adreno GPU performance profiles on the fly.
-  * **Custom Fan Curves**: Switch between Relaxed, Moderate and Aggressive.
+  * **Custom Fan Curves**: Switch between Relaxed, Moderate, and Aggressive.
 * **Hardware Controls (`ayaneo-keys`)**:
   * **Home / AYANEO Key**: Directly triggers the Steam Menu overlay.
   * **Menu / Custom Key**: Directly triggers the Quick Access Menu (QAM).
   * **Programmable buttons (LC / RC)**: Mapped as direct virtual gamepad buttons.
 * **Turnip Mesa Vulkan Driver**:
-  Native Vulkan 1.4 driver for Qualcomm Adreno
+  Native Vulkan 1.4 driver for Qualcomm Adreno GPUs.
 * **FEX-Emu & Proton Gaming**:
   Optimized x86_64 translation stack running native Steam x86_64 games and Windows titles via Proton on ARM64.
 * **Display Engine & USB-C Hotplug**:
@@ -73,6 +74,7 @@ Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
   Switch seamlessly between Steam Game Mode and a full-featured Wayland desktop session for web browsing and productivity.
 * **Integrated OTA Updates (`reverie-updater`)**:
   Built-in OTA updater connected directly to GitHub Releases for one-click system upgrades.
+
 ---
 
 ## Installation Guide
@@ -91,7 +93,8 @@ Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
    - Select **Switch boot mode**.
    - Select **START**.
 5. The first boot takes **1–2 minutes** while the filesystem expands and Steam prepares the environment.
-6. (Optional) Switch to Desktop Mode and open Reverie installer for internal install 
+6. (Optional) Switch to Desktop Mode and open Reverie installer for internal install.
+
 ### System Credentials
 * **User**: `steamos`
 * **Password**: `reverie`
@@ -101,26 +104,29 @@ Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 ## Reporting Issues & Sending Debug Logs
 
 Reverie includes an automated hardware and boot logger daemon.
-### Quick CLI Management:
 
- 1. reverie-debug status   -   Check current logger status
- 2. reverie-debug enable   -  Enable boot diagnostics
- 3. reverie-debug disable  -  Disable logger
- 4. reverie-debug clean    -  Clear existing log files
- 5. reverie-debug collect  -  Bundle logs into /home/steamos/reverie-debug-<date>.tar.gz
+### Quick CLI Management:
+1. `reverie-debug status`   - Check current logger status
+2. `reverie-debug enable`   - Enable boot diagnostics
+3. `reverie-debug disable`  - Disable logger
+4. `reverie-debug clean`    - Clear existing log files
+5. `reverie-debug collect`  - Bundle logs into `/home/steamos/reverie-debug-<date>.tar.gz`
 
 Boot debug logs are automatically saved to `/home/steamos/`:
-   - `BOOT-DEBUG-dmesg.txt`
-   - `BOOT-DEBUG-journal.txt`
-   - `BOOT-DEBUG-audio.txt`
-   - `BOOT-DEBUG-late.txt`
+- `BOOT-DEBUG-dmesg.txt`
+- `BOOT-DEBUG-journal.txt`
+- `BOOT-DEBUG-audio.txt`
+- `BOOT-DEBUG-late.txt`
+
 Open an [Issue](https://github.com/gryoza/reverie/issues) and attach these files so I can diagnose and fix it for your device!
 
 ---
 
 ## Credits & Acknowledgements
 
-* **[Valve Corporation](https://www.valvesoftware.com/)** - SteamOS, Gamescope, Deckard userspace, and Steam client.
-* **[ROCKNIX Team](https://github.com/ROCKNIX)** - ABL bootloader, device tree sources, and Qualcomm Linux enablement.
-* **[MaSieS4Fun](https://github.com/MaSieS4Fun/SteamOS-Ubuntu)** - Plugins and foundational scripts.
-* **[Armada](https://github.com/armada-os/armada)** - Qualcomm Linux packaging reference, firmware integration, and architectural inspiration.
+Reverie OS is built upon the foundational work of the open-source and handheld gaming communities. Detailed component breakdowns, upstream sources, and author credits are documented in [**CREDITS.md**](CREDITS.md).
+
+* **[Valve Corporation](https://www.valvesoftware.com/)** — SteamOS, Gamescope, Deckard ARM64 userspace, and Steam client.
+* **[ROCKNIX Team](https://github.com/ROCKNIX)** — ABL bootloader, device tree sources, and Qualcomm Linux enablement.
+* **[Armada](https://github.com/armada-os/armada)** — Qualcomm Linux packaging reference, firmware integration, and architectural inspiration.
+* **[MaSieS4Fun](https://github.com/MaSieS4Fun/SteamOS-Ubuntu)** — Foundational scripts and Snapdragon handheld research.
