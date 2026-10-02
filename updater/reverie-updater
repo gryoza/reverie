@@ -397,6 +397,10 @@ def main():
         print(get_current_version())
         sys.exit(0)
 
+    if args and args[0] in ("-h", "--help", "help"):
+        print("Usage: reverie-updater [check|apply|version|test-update <tar>]")
+        sys.exit(0)
+
     cfg = load_config()
 
     if args and args[0] in ("check", "--check"):
