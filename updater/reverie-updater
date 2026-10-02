@@ -22,7 +22,7 @@ CONF_PATH = "/etc/reverie/update.conf"
 OS_RELEASE = "/etc/os-release"
 VERSION_FILE = "/etc/reverie/version"
 DEFAULT_REPO = "gryoza/reverie"
-DEFAULT_ESP = "/dev/disk/by-label/ARMADA"
+DEFAULT_ESP = "/dev/disk/by-label/REVERIE"
 FALLBACK_ESP = "/dev/sda12"
 SNAPSHOT_SCRIPT = "/usr/lib/reverie/reverie-btrfs-snapshot.sh"
 
