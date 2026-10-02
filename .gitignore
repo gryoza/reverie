@@ -1,0 +1,34 @@
+# OS and Raw Disk Images (published in GitHub Releases, not git)
+*.img
+*.img.xz
+*.img.zst
+*.img.gz
+*.raw
+*.iso
+*.tar.zst
+*.tar.gz
+*.caibx
+*.sha256
+*.bak
+*.BAK
+
+# Build and temporary files
+build_output/
+*.tmp
+.tmp*
+.image-mnt/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.metadata.json
+
+# Logs
+*.log
+BOOT-DEBUG-*.txt
+
+# IDE / System
+.DS_Store
+.idea/
+.vscode/

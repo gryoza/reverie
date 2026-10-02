@@ -1,0 +1,230 @@
+#!/bin/bash
+# Policy for SM8550 speaker / HDMI-DP routing:
+# AYANEO Pocket S: UCM HiFi profile + WSA884x speaker amplifier
+# AYN Odin 2: pro-audio / MI2S
+set +e
+export PATH="/usr/sbin:/usr/bin:/sbin:/bin${PATH:+:$PATH}"
+
+MODE=once
+case "${1:-}" in
+    --watch|-w) MODE=watch ;;
+esac
+
+if [[ -f /etc/reverie/debug-enabled ]]; then
+  LOGFILE="/home/steamos/sm8550-audio-pipewire.log"
+else
+  LOGFILE="/dev/null"
+fi
+log() {
+  echo "sm8550-audio-pipewire: $*" >&2
+  echo "$(date '+%Y-%m-%d %H:%M:%S') sm8550-audio-pipewire: $*" >>"$LOGFILE" 2>/dev/null || true
+}
+pactl_ok() { timeout 8 pactl "$@" 2>/dev/null; }
+
+wait_card() {
+  local i
+  for i in $(seq 1 80); do
+    pactl_ok list short cards | grep -qiE 'platform-sound|alsa_card' && return 0
+    sleep 0.25
+  done
+  return 1
+}
+
+card_name() {
+  pactl_ok list short cards | awk 'BEGIN{IGNORECASE=1}
+    /platform-sound/ {print $2; exit}
+    /alsa_card/ {print $2; exit}'
+}
+
+drm_dp() {
+  local f
+  for f in /sys/class/drm/card*-DP-*/status /sys/class/drm/card*-HDMI-A-*/status; do
+    [[ -r "$f" ]] || continue
+    [[ "$(tr -d '[:space:]' <"$f")" == connected ]] && return 0
+  done
+  return 1
+}
+
+restore_speaker_mixers() {
+  /usr/lib/steamos/sm8550-audio-setup >/dev/null 2>&1
+}
+
+enable_dp_mixers() {
+  amixer -c 0 cset name='PRIMARY_MI2S_RX Audio Mixer MultiMedia1' 0 >/dev/null 2>&1 || true
+  amixer -c 0 cset name='WSA_CODEC_DMA_RX_0 Audio Mixer MultiMedia1' 0 >/dev/null 2>&1 || true
+  amixer -c 0 cset name='WSA_CODEC_DMA_RX_0 Audio Mixer MultiMedia2' 0 >/dev/null 2>&1 || true
+  amixer -c 0 cset name='DISPLAY_PORT_RX_0 Audio Mixer MultiMedia1' 1 >/dev/null 2>&1 || true
+  amixer -c 0 cset name='DISPLAY_PORT_RX_0 Audio Mixer MultiMedia2' 1 >/dev/null 2>&1 || true
+}
+
+set_default() {
+  local sink="$1" idx
+  [[ -n "${sink:-}" ]] || return 1
+  log "setting default sink: ${sink}"
+  pactl_ok set-default-sink "$sink"
+  pactl_ok set-sink-mute "$sink" 0
+  pactl_ok set-sink-volume "$sink" 80%
+  wpctl set-default "$sink" >/dev/null 2>&1 || true
+  wpctl set-mute @DEFAULT_AUDIO_SINK@ 0 >/dev/null 2>&1 || true
+  wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.8 >/dev/null 2>&1 || true
+  while read -r idx; do
+    [[ -n "${idx:-}" ]] || continue
+    pactl_ok move-sink-input "$idx" "$sink"
+  done < <(pactl_ok list short sink-inputs | awk '{print $1}')
+}
+
+find_sink() {
+  local pat="$1"
+  pactl_ok list short sinks | awk -v pat="$pat" 'BEGIN{IGNORECASE=1}
+    $2 ~ /loopback/ {next}
+    $2 ~ pat {print $2; exit}'
+}
+
+wait_sink() {
+  local pat="$1" i
+  for i in $(seq 1 20); do
+    find_sink "$pat" && return 0
+    sleep 0.25
+  done
+  return 1
+}
+
+set_profile() {
+  local card="$1" profile="$2"
+  log "setting card profile: $card -> $profile"
+  pactl_ok set-card-profile "$card" "$profile"
+}
+
+persist() {
+  local sink="$1" profile="$2"
+  local state="${XDG_STATE_HOME:-$HOME/.local/state}/wireplumber"
+  mkdir -p "$state"
+  printf '[default-nodes]\ndefault.configured.audio.sink=%s\n' "$sink" >"$state/default-nodes"
+  printf '[default-profile]\nalsa_card.platform-sound=%s\n' "$profile" >"$state/default-profile"
+}
+
+apply_policy() {
+  local card sink
+  card="$(card_name)"
+  [[ -n "$card" ]] || { log "no card found in pipewire"; return 1; }
+  log "card=${card}"
+
+  if drm_dp; then
+    log "DRM DP/HDMI connected → HiFi DisplayPort"
+    set_profile "$card" 'HiFi (DisplayPort, Speaker)' \
+      || set_profile "$card" 'HiFi (Speaker, DisplayPort)' \
+      || set_profile "$card" HiFi
+    enable_dp_mixers
+    wait_sink 'DisplayPort|HDMI' >/dev/null
+    sink="$(find_sink 'DisplayPort|HDMI')"
+    persist "${sink:-alsa_output.platform-sound.HiFi__DisplayPort__sink}" 'HiFi (DisplayPort, Speaker)'
+    set_default "$sink"
+  else
+    log "DRM internal display → speakers"
+    restore_speaker_mixers
+
+    if grep -qiE 'SM8550-APS|ayaneo' /proc/asound/cards 2>/dev/null || [[ -d /usr/share/alsa/ucm2/AYANEO ]]; then
+      log "AYANEO detected: configuring HiFi profile"
+      # Apply exact profile name directly:
+      if set_profile "$card" "HiFi (Mic1, Speaker)"; then
+        log "successfully set card profile to HiFi (Mic1, Speaker)"
+      else
+        hifi_prof="$(pactl_ok list cards | sed -n 's/^[[:space:]]*\(HiFi[^:]*\):.*/\1/p' | head -n 1)"
+        if [[ -n "$hifi_prof" ]] && set_profile "$card" "$hifi_prof"; then
+          log "set detected profile: $hifi_prof"
+        fi
+      fi
+
+      restore_speaker_mixers
+      wait_sink 'Speaker|HiFi' >/dev/null
+      sink="$(find_sink 'Speaker|HiFi')"
+
+      # Fallback: if UCM not recognized, WSA884x speaker is pro-output-1 (PCM 1)
+      if [[ -z "$sink" ]]; then
+        log "Speaker sink not found, checking pro-output-1 (WSA884x PCM 1)..."
+        sink="$(find_sink 'pro-output-1')"
+      fi
+      if [[ -z "$sink" ]]; then
+        sink="$(find_sink 'pro-output-0')"
+      fi
+
+      log "chosen speaker sink: ${sink}"
+      if [[ -n "$sink" ]]; then
+        persist "$sink" "HiFi"
+        set_default "$sink"
+      fi
+
+      # Unmute both pro-output-0 and pro-output-1 just in case
+      for s in $(pactl_ok list short sinks | awk '{print $2}'); do
+        pactl_ok set-sink-mute "$s" 0
+        pactl_ok set-sink-volume "$s" 80%
+      done
+    else
+      log "AYN Odin 2 fallback: using pro-audio"
+      set_profile "$card" pro-audio
+      restore_speaker_mixers
+      wait_sink 'pro-output-0' >/dev/null
+      restore_speaker_mixers
+      sink="$(find_sink 'pro-output-0')"
+      [[ -n "$sink" ]] || sink="$(find_sink 'pro-output')"
+      persist "${sink:-alsa_output.platform-sound.pro-output-0}" pro-audio
+      set_default "$sink" || log "no speaker sink"
+    fi
+  fi
+
+  log "sinks=$(pactl_ok list short sinks | tr '\n' ';')"
+  log "default=$(pactl_ok get-default-sink)"
+  chown 1000:1000 "$LOGFILE" 2>/dev/null || true
+}
+
+if ! wait_card; then
+  log "pipewire card never appeared"
+  exit 0
+fi
+
+apply_policy
+if [[ "$MODE" != "watch" ]]; then
+  exit 0
+fi
+
+last=off
+drm_dp && last=on
+log "watch last_dp=${last}"
+while true; do
+  sleep 2
+  cur=off
+  drm_dp && cur=on
+  if [[ "$cur" != "$last" ]]; then
+    log "DP flip ${last} -> ${cur}"
+    apply_policy
+
+    # Dynamic Game Mode display hotplug handling:
+    if pgrep -x gamescope >/dev/null 2>&1; then
+      # Give Gamescope 2s to switch natively on DRM hotplug
+      sleep 2
+      dp_active=0
+      for ef in /sys/class/drm/card*-DP-*/enabled /sys/class/drm/card*-HDMI-*/enabled; do
+        if [[ -r "$ef" ]] && [[ "$(tr -d '[:space:]' <"$ef")" == "enabled" ]]; then
+          dp_active=1
+          break
+        fi
+      done
+      if { [[ "$cur" == "on" ]] && (( dp_active == 0 )); } || { [[ "$cur" == "off" ]] && (( dp_active == 1 )); }; then
+        log "Gamescope display hotplug fallback: restarting gamescope-session (cur=${cur} dp_active=${dp_active})..."
+        systemctl --user restart gamescope-session.service 2>/dev/null || true
+      else
+        log "Gamescope display hotplug handled natively (cur=${cur} dp_active=${dp_active})"
+      fi
+    elif pgrep -x kwin_wayland >/dev/null 2>&1; then
+      if [[ "$cur" == "on" ]]; then
+        log "KDE display hotplug: enabling external display DP-1..."
+        (/usr/lib/steamos/sm8550-kde-display-hotplug) &
+      else
+        log "KDE display hotplug: DP disconnected, restoring internal display DSI-1..."
+        (sleep 1; kscreen-doctor output.DSI-1.enable output.DSI-1.primary >/dev/null 2>&1 || true) &
+      fi
+    fi
+
+    last="$cur"
+  fi
+done

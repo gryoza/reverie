@@ -1,0 +1,15 @@
+[Unit]
+Description=SM8550 speaker audio and mixer setup
+After=sound.target systemd-modules-load.service
+Wants=sound.target
+Before=sddm.service gamescope-session.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+ExecStart=/usr/lib/steamos/sm8550-audio-setup
+
+[Install]
+WantedBy=multi-user.target sound.target
