@@ -27,7 +27,7 @@ It delivers an authentic Steam Frame OS working out-of-the-box. Any extra launch
 
 ## Device Compatibility
 
-Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen 2)** other devices are supported via ROCKINIX device tree and currently are in experimental state waiting for someone to try them out. If you test one of them and encounter issues, share your logs and I will be happy to fix them!
+Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen 2)** other devices are supported via ROCKNIX device tree and currently are in experimental state waiting for someone to try them out. If you test one of them and encounter issues, share your logs and I will be happy to fix them!
 
 | Manufacturer | Device Model | SoC / Platform | Status | Hardware Notes |
 | :--- | :--- | :--- | :---: | :--- |
@@ -62,7 +62,7 @@ Reverie OS is mainly built for Ayaneo Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 * **Hardware Controls (`ayaneo-keys`)**:
   * **Home / AYANEO Key**: Directly triggers the Steam Menu overlay.
   * **Menu / Custom Key**: Directly triggers the Quick Access Menu (QAM).
-  * **Pragrammable buttons (LC / RC)**: Mapped as direct virtual gamepad buttons.
+  * **Programmable buttons (LC / RC)**: Mapped as direct virtual gamepad buttons.
 * **Turnip Mesa Vulkan Driver**:
   Native Vulkan 1.4 driver for Qualcomm Adreno
 * **FEX-Emu & Proton Gaming**:
@@ -120,9 +120,7 @@ Open an [Issue](https://github.com/gryoza/reverie/issues) and attach these files
 
 ## Credits & Acknowledgements
 
-Reverie OS is built upon the foundational work of the open-source and handheld gaming communities. Detailed component breakdowns, upstream sources, and author credits are documented in [**CREDITS.md**](CREDITS.md).
-
-* **[Valve Corporation](https://www.valvesoftware.com/)** — SteamOS, Gamescope, Deckard ARM64 userspace, and Steam client.
-* **[ROCKNIX Team](https://github.com/ROCKNIX)** — ABL bootloader, device tree sources, and Qualcomm Linux enablement.
-* **[Armada](https://github.com/armada-os/armada)** — Qualcomm Linux packaging reference, firmware integration, and architectural inspiration.
-* **[MaSieS4Fun](https://github.com/MaSieS4Fun/SteamOS-Ubuntu)** — Foundational scripts and Snapdragon handheld research.
+* **[Valve Corporation](https://www.valvesoftware.com/)** - SteamOS, Gamescope, Deckard userspace, and Steam client.
+* **[ROCKNIX Team](https://github.com/ROCKNIX)** - ABL bootloader, device tree sources, and Qualcomm Linux enablement.
+* **[MaSieS4Fun](https://github.com/MaSieS4Fun/SteamOS-Ubuntu)** - Plugins and foundational scripts.
+* **[Armada](https://github.com/armada-os/armada)** - Qualcomm Linux packaging reference, firmware integration, and architectural inspiration.
