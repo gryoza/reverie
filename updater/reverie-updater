@@ -390,22 +390,26 @@ def cmd_apply(cfg: dict, local_tar: str = None) -> int:
 
 
 def main():
+    args = sys.argv[1:]
+
+    # Only elevate to root if applying updates
+    if args and args[0] in ("version", "--version"):
+        print(get_current_version())
+        sys.exit(0)
+
+    cfg = load_config()
+
+    if args and args[0] in ("check", "--check"):
+        sys.exit(cmd_check(cfg))
+
     if os.geteuid() != 0:
         log("Elevating privileges to root...")
         os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
 
-    cfg = load_config()
-    args = sys.argv[1:]
-
     if not args or args[0] in ("apply", "update", "--apply"):
         sys.exit(cmd_apply(cfg))
-    elif args[0] == "check":
-        sys.exit(cmd_check(cfg))
     elif args[0] == "test-update" and len(args) > 1:
         sys.exit(cmd_apply(cfg, local_tar=args[1]))
-    elif args[0] in ("version", "--version"):
-        print(get_current_version())
-        sys.exit(0)
     else:
         log(f"Unknown argument: {args[0]}")
         sys.exit(7)
