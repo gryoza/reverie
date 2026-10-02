@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Reverie Installer
+Comment=Install Reverie OS alongside Android on internal storage
+Exec=/usr/bin/reverie-installer gui
+Icon=drive-harddisk
+Terminal=false
+Categories=System;Settings;
+Keywords=install;internal;reverie;

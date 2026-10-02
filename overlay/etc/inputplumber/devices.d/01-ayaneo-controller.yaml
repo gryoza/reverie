@@ -1,0 +1,55 @@
+version: 1
+kind: CompositeDevice
+name: AYANEO Layout
+
+matches:
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: compatible
+          value: ayaneo,pocket-s1
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: compatible
+          value: ayaneo,pocket-s2
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: model
+          value: AYANEO Pocket S 1K
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: model
+          value: AYANEO Pocket S 2K
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: model
+          value: AYANEO Pocket EVO
+
+single_source: false
+
+source_devices:
+  - group: gamepad
+    capability_map_id: dinput_generic
+    evdev:
+      name: AYANEO Controller
+      vendor_id: 4001
+      product_id: 0428
+      handler: event*
+  - group: gamepad
+    capability_map_id: ayaneo_pocket_evo_keys
+    evdev:
+      name: AYANEO Hardware Aux Keys
+      vendor_id: 28de
+      product_id: 11ff
+      handler: event*
+
+options:
+  auto_manage: true
+
+target_devices:
+  - deck-uhid
+  - keyboard

@@ -1,0 +1,5 @@
+#!/bin/bash
+# Official startplasma-wayland, after clearing Game Mode Qt/X11 leftovers.
+/usr/lib/steamos/sm8550-prepare-plasma
+/usr/lib/steamos/sm8550-kde-display-hotplug &
+exec /usr/bin/startplasma-wayland "$@"

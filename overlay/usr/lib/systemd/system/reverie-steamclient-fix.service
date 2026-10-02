@@ -1,0 +1,11 @@
+[Unit]
+Description=Reverie OS SteamClient ARM64 Runtime Fix
+Before=gamescope-session.service lightdm.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/reverie/fix-steamclient.sh
+
+[Install]
+WantedBy=multi-user.target
