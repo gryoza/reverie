@@ -1,0 +1,36 @@
+name: CI & Validation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Syntax check Python scripts
+        run: |
+          python -m py_compile updater/reverie-updater
+          python -m py_compile build/reverie-installer.py
+          python -m py_compile build/extract_rootfs.py
+          python -m py_compile plugins/Reverie-Power/main.py
+          python -m py_compile overlay/usr/local/bin/ayaneo-keys.py
+
+      - name: Syntax check Shell scripts
+        run: |
+          bash -n build/assemble-reverie.sh
+          bash -n overlay/usr/lib/reverie/reverie-growfs.sh
+          bash -n overlay/usr/lib/reverie/fix-steamclient.sh
+          bash -n overlay/usr/lib/reverie/reverie-btrfs-snapshot.sh
+          bash -n overlay/usr/lib/steamos/sm8550-audio-setup
+          bash -n overlay/usr/lib/steamos/sm8550-audio-pipewire
+          bash -n overlay/usr/lib/steamos/gamescope-session

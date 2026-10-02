@@ -1,0 +1,16 @@
+[Unit]
+Description=Reverie OS MicroSD Root Filesystem Auto-Expansion
+DefaultDependencies=no
+Conflicts=shutdown.target
+After=local-fs.target
+Before=graphical.target shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/reverie/reverie-growfs.sh
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

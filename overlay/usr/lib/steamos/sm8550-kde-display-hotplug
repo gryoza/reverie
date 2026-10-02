@@ -1,0 +1,57 @@
+#!/bin/bash
+# Auto-configure displays in KDE Plasma (Wayland) for Pocket S & external DP
+set +e
+export PATH="/usr/bin:/bin${PATH:+:$PATH}"
+
+if [[ -f /etc/reverie/debug-enabled ]]; then
+  LOGFILE="/home/steamos/sm8550-kde-display.log"
+else
+  LOGFILE="/dev/null"
+fi
+log() {
+  echo "sm8550-kde-display: $*" >&2
+  echo "$(date '+%Y-%m-%d %H:%M:%S') sm8550-kde-display: $*" >>"$LOGFILE" 2>/dev/null || true
+}
+
+drm_dp_connected() {
+  for f in /sys/class/drm/card*-DP-*/status /sys/class/drm/card*-HDMI-*/status; do
+    [[ -r "$f" ]] || continue
+    [[ "$(tr -d '[:space:]' <"$f")" == "connected" ]] && return 0
+  done
+  return 1
+}
+
+# Wait for KScreen to be available over D-Bus
+wait_kscreen() {
+  for i in $(seq 1 20); do
+    if kscreen-doctor -o >/dev/null 2>&1; then
+      log "kscreen-doctor available at iteration $i"
+      return 0
+    fi
+    sleep 0.5
+  done
+  log "kscreen-doctor not ready after 10s"
+  return 1
+}
+
+if ! wait_kscreen; then
+  exit 0
+fi
+
+if drm_dp_connected; then
+  log "DP connected, enabling external display DP-1 in KDE..."
+  for attempt in $(seq 1 5); do
+    if kscreen-doctor output.DP-1.enable output.DP-1.primary output.DP-1.mode.1920x1080@60 >>"$LOGFILE" 2>&1 \
+       || kscreen-doctor output.DP-1.enable output.DP-1.primary >>"$LOGFILE" 2>&1; then
+      log "Successfully enabled DP-1 as primary display in KDE"
+      break
+    fi
+    sleep 1
+  done
+else
+  log "DP disconnected, ensuring DSI-1 is primary"
+  kscreen-doctor output.DSI-1.enable output.DSI-1.primary >>"$LOGFILE" 2>&1 || true
+fi
+
+chown 1000:1000 "$LOGFILE" 2>/dev/null || true
+exit 0

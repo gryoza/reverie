@@ -1,0 +1,47 @@
+version: 2
+kind: CapabilityMap
+name: AYANEO Pocket Keys
+id: ayaneo_pocket_evo_keys
+
+mapping:
+  - name: AYA SPACE (QuickAccess)
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_F13
+          value_type: button
+    target_event:
+      gamepad:
+        button: QuickAccess
+
+  - name: Menu Equal (Guide)
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_F14
+          value_type: button
+    target_event:
+      gamepad:
+        button: Guide
+
+  - name: LC (Left Paddle 1)
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_F15
+          value_type: button
+    target_event:
+      gamepad:
+        button: LeftPaddle1
+
+  - name: RC (Right Paddle 1)
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_F16
+          value_type: button
+    target_event:
+      gamepad:
+        button: RightPaddle1
+
+filtered_events: []

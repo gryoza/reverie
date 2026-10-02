@@ -1,0 +1,14 @@
+NAME="Reverie OS"
+PRETTY_NAME="Reverie OS 1.0 (Holo)"
+ID=steamos
+ID_LIKE=arch
+BUILD_ID="1.0.0"
+VARIANT_ID="steamdeck"
+VARIANT="Handheld Edition"
+VERSION_CODENAME=holo
+ANSI_COLOR="1;35"
+HOME_URL="https://github.com/gryoza/reverie"
+DOCUMENTATION_URL="https://github.com/gryoza/reverie"
+SUPPORT_URL="https://github.com/gryoza/reverie/issues"
+BUG_REPORT_URL="https://github.com/gryoza/reverie/issues"
+LOGO=steamos

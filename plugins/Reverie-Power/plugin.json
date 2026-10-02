@@ -1,0 +1,25 @@
+{
+  "name": "Reverie-Power",
+  "author": "Reverie Project",
+  "api_version": 1,
+  "flags": [
+    "root"
+  ],
+  "publish": {
+    "tags": [
+      "power",
+      "snapdragon",
+      "sm8550",
+      "sm8650",
+      "sm8750",
+      "qualcomm",
+      "arm64",
+      "handheld",
+      "battery",
+      "gpu",
+      "reverie"
+    ],
+    "description": "Power profiles & fan control for Qualcomm Snapdragon handhelds (Pocket S, Odin, Thor, RP, etc.).",
+    "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/decky-loader"
+  }
+}

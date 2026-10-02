@@ -1,0 +1,13 @@
+[Unit]
+Description=SM8550 rsinput stick range (±740)
+Documentation=https://github.com/gryoza/reverie
+After=systemd-udevd.service
+Wants=systemd-udevd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/steamos/sm8550-fixpad apply 740
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

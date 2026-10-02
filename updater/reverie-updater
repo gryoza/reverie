@@ -1,0 +1,423 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Reverie OS OTA Updater
+Interfaces with GitHub Releases and Steam Game Mode (steamos-update).
+"""
+
+import os
+import sys
+import json
+import time
+import shutil
+import hashlib
+import tempfile
+import urllib.request
+import urllib.error
+import subprocess
+import re
+from pathlib import Path
+
+CONF_PATH = "/etc/reverie/update.conf"
+OS_RELEASE = "/etc/os-release"
+VERSION_FILE = "/etc/reverie/version"
+DEFAULT_REPO = "gryoza/reverie"
+DEFAULT_ESP = "/dev/disk/by-label/REVERIE"
+FALLBACK_ESP = "/dev/sda12"
+SNAPSHOT_SCRIPT = "/usr/lib/reverie/reverie-btrfs-snapshot.sh"
+
+
+def log(msg: str):
+    sys.stderr.write(f"[Reverie-Updater] {msg}\n")
+    sys.stderr.flush()
+
+
+def emit_progress(pct: int):
+    pct = max(0, min(100, int(pct)))
+    print(f"{pct}%", flush=True)
+
+
+def load_config() -> dict:
+    cfg = {
+        "GITHUB_REPO": DEFAULT_REPO,
+        "CHANNEL": "stable",
+        "DEVICE_MODEL": "ayaneo-pocket-s",
+        "ESP_DEV": DEFAULT_ESP,
+        "BTRFS_BACKUP": True,
+        "WORK_DIR": "/var/tmp/reverie-update"
+    }
+    if os.path.exists(CONF_PATH):
+        try:
+            with open(CONF_PATH, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("\"'")
+                        if k == "BTRFS_BACKUP":
+                            cfg[k] = v.lower() in ("true", "1", "yes")
+                        else:
+                            cfg[k] = v
+        except Exception as e:
+            log(f"Warning reading config: {e}")
+    return cfg
+
+
+def get_current_version() -> str:
+    # 1. Custom version file if available
+    if os.path.exists(VERSION_FILE):
+        try:
+            v = Path(VERSION_FILE).read_text(encoding="utf-8").strip()
+            if v:
+                return v
+        except Exception:
+            pass
+
+    # 2. Check /etc/os-release
+    build_id = ""
+    version_id = ""
+    if os.path.exists(OS_RELEASE):
+        try:
+            with open(OS_RELEASE, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("BUILD_ID="):
+                        build_id = line.split("=", 1)[1].strip("\"'")
+                    elif line.startswith("VERSION_ID="):
+                        version_id = line.split("=", 1)[1].strip("\"'")
+        except Exception:
+            pass
+
+    return build_id or version_id or "0.5.0"
+
+
+def parse_version_tuple(v_str: str) -> tuple:
+    clean = v_str.lstrip("vV").strip()
+    parts = []
+    for token in clean.replace("-", ".").replace("_", ".").split("."):
+        try:
+            parts.append(int(token))
+        except ValueError:
+            parts.append(token)
+    return tuple(parts)
+
+
+def is_newer(remote: str, local: str) -> bool:
+    r_clean = remote.lstrip("vV").strip()
+    l_clean = local.lstrip("vV").strip()
+    if r_clean == l_clean:
+        return False
+    try:
+        return parse_version_tuple(r_clean) > parse_version_tuple(l_clean)
+    except Exception:
+        return r_clean != l_clean
+
+
+def query_github_release(repo: str, channel: str = "stable") -> dict:
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    if channel != "stable":
+        url = f"https://api.github.com/repos/{repo}/releases"
+
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Reverie-Updater/1.0",
+            "Accept": "application/vnd.github.v3+json"
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            if isinstance(data, list):
+                if not data:
+                    return {}
+                return data[0]
+            return data
+    except urllib.error.HTTPError as e:
+        log(f"GitHub API HTTP error {e.code}: {e.reason}")
+        return {}
+    except Exception as e:
+        log(f"GitHub API connection failed: {e}")
+        return {}
+
+
+def download_file(url: str, dest_path: Path, start_pct: int = 0, end_pct: int = 60) -> bool:
+    req = urllib.request.Request(url, headers={"User-Agent": "Reverie-Updater/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response, open(dest_path, "wb") as out_f:
+            total_size = int(response.headers.get("Content-Length", 0))
+            downloaded = 0
+            block_size = 64 * 1024
+            last_emitted = -1
+
+            while True:
+                chunk = response.read(block_size)
+                if not chunk:
+                    break
+                out_f.write(chunk)
+                downloaded += len(chunk)
+
+                if total_size > 0:
+                    pct = start_pct + int((downloaded / total_size) * (end_pct - start_pct))
+                    if pct > last_emitted and pct <= end_pct:
+                        emit_progress(pct)
+                        last_emitted = pct
+
+            emit_progress(end_pct)
+            return True
+    except Exception as e:
+        log(f"Download failed: {e}")
+        return False
+
+
+def verify_sha256(file_path: Path, expected_hash: str) -> bool:
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        while chunk := f.read(128 * 1024):
+            h.update(chunk)
+    actual = h.hexdigest().lower()
+    return actual == expected_hash.strip().lower()
+
+
+def update_kernel_in_esp(esp_dev: str, new_kernel_path: Path) -> bool:
+    if not new_kernel_path.is_file():
+        return True
+
+    target_dev = esp_dev
+    if not os.path.exists(target_dev):
+        target_dev = FALLBACK_ESP
+    if not os.path.exists(target_dev):
+        log(f"ESP device {esp_dev} not found, skipping KERNEL partition update")
+        return True
+
+    mnt = tempfile.mkdtemp(prefix="reverie-esp-")
+    try:
+        log(f"Mounting ESP partition {target_dev} at {mnt}...")
+        subprocess.run(["mount", target_dev, mnt], check=True)
+        dest_kernel = Path(mnt) / "KERNEL"
+        dest_bak = Path(mnt) / "KERNEL.BAK"
+
+        if dest_kernel.exists():
+            log("Backing up current KERNEL to KERNEL.BAK...")
+            shutil.copy2(dest_kernel, dest_bak)
+            subprocess.run(["sync", "-f", str(dest_bak)], check=True)
+
+        log("Writing new KERNEL image...")
+        tmp_k = Path(mnt) / ".KERNEL.new"
+        shutil.copy2(new_kernel_path, tmp_k)
+        subprocess.run(["sync", "-f", str(tmp_k)], check=True)
+        os.replace(tmp_k, dest_kernel)
+        subprocess.run(["sync", mnt], check=True)
+        log("KERNEL partition updated successfully.")
+        return True
+    except Exception as e:
+        log(f"Failed to update KERNEL in ESP: {e}")
+        return False
+    finally:
+        subprocess.run(["umount", mnt], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        shutil.rmtree(mnt, ignore_errors=True)
+
+
+def cmd_check(cfg: dict) -> int:
+    current = get_current_version()
+    repo = cfg["GITHUB_REPO"]
+    log(f"Checking updates for {repo} (current: {current})...")
+
+    rel = query_github_release(repo, cfg["CHANNEL"])
+    if not rel:
+        log("No releases found or network unavailable.")
+        return 7
+
+    tag = rel.get("tag_name", "").strip()
+    if not tag:
+        log("Release has no tag_name.")
+        return 7
+
+    if is_newer(tag, current):
+        log(f"New update available: {tag} (current: {current})")
+        print(tag)
+        return 0
+
+    log(f"System is up to date ({current}).")
+    return 7
+
+
+def cmd_apply(cfg: dict, local_tar: str = None) -> int:
+    current = get_current_version()
+    work_dir = Path(cfg["WORK_DIR"])
+    work_dir.mkdir(parents=True, exist_ok=True)
+    tar_path = work_dir / "update.tar.zst"
+    new_version = ""
+
+    if local_tar:
+        log(f"Applying local update package: {local_tar}")
+        tar_path = Path(local_tar)
+        new_version = "custom-update"
+        emit_progress(10)
+    else:
+        repo = cfg["GITHUB_REPO"]
+        log(f"Applying update from GitHub: {repo}...")
+        rel = query_github_release(repo, cfg["CHANNEL"])
+        if not rel:
+            log("Cannot fetch release metadata.")
+            return 7
+
+        new_version = rel.get("tag_name", "update")
+        assets = rel.get("assets", [])
+        tar_asset = None
+        sha_asset = None
+
+        for a in assets:
+            name = a.get("name", "")
+            if name.endswith(".tar.zst"):
+                tar_asset = a
+            elif "sha256" in name.lower() or name.endswith(".sha256"):
+                sha_asset = a
+
+        if not tar_asset:
+            log("No .tar.zst asset found in latest release.")
+            return 7
+
+        # 1. Download asset (0% -> 60%)
+        emit_progress(5)
+        log(f"Downloading {tar_asset['name']} ({tar_asset.get('size', 0)} bytes)...")
+        if not download_file(tar_asset["browser_download_url"], tar_path, 5, 60):
+            return 7
+
+        # 2. Verify Checksum (60% -> 65%)
+        emit_progress(60)
+        if sha_asset:
+            sha_file = work_dir / "sha256sums.txt"
+            if download_file(sha_asset["browser_download_url"], sha_file, 60, 62):
+                expected = ""
+                with open(sha_file, "r") as f:
+                    for line in f:
+                        if tar_asset["name"] in line:
+                            expected = line.split()[0]
+                            break
+                if expected:
+                    log(f"Verifying SHA-256 ({expected[:8]}...)...")
+                    if not verify_sha256(tar_path, expected):
+                        log("SHA-256 verification failed!")
+                        return 7
+                    log("Checksum verified.")
+        emit_progress(65)
+
+    # 3. Create Btrfs Safety Snapshot (65% -> 70%)
+    if cfg["BTRFS_BACKUP"] and os.path.exists(SNAPSHOT_SCRIPT):
+        emit_progress(67)
+        try:
+            subprocess.run([SNAPSHOT_SCRIPT, "pre-ota"], check=False)
+        except Exception as e:
+            log(f"Snapshot warning: {e}")
+    emit_progress(70)
+
+    # 4. Extract update files to / (70% -> 88%)
+    log("Extracting update package to rootfs...")
+    extract_temp = Path(tempfile.mkdtemp(prefix="reverie-unpack-"))
+    try:
+        # Extract into temp first to inspect contents
+        subprocess.run(
+            ["tar", "-x", "--zstd", "-f", str(tar_path), "-C", str(extract_temp)],
+            check=True
+        )
+        emit_progress(80)
+
+        # Look for new KERNEL
+        kernel_candidates = [
+            extract_temp / "boot" / "KERNEL",
+            extract_temp / "KERNEL",
+            extract_temp / "boot.img"
+        ]
+        new_k = next((k for k in kernel_candidates if k.is_file()), None)
+        if new_k:
+            log(f"Found new bootable KERNEL ({new_k.stat().st_size} bytes)")
+            update_kernel_in_esp(cfg["ESP_DEV"], new_k)
+            # Remove from temp so it does not waste space in /
+            new_k.unlink(missing_ok=True)
+            if (extract_temp / "boot" / "KERNEL").exists():
+                (extract_temp / "boot" / "KERNEL").unlink(missing_ok=True)
+        emit_progress(88)
+
+        # Copy extracted files over / (excluding temporary metadata)
+        post_script = extract_temp / "post-install.sh"
+        has_post = post_script.is_file()
+        if has_post:
+            post_script.chmod(0o755)
+
+        log("Applying system files to /...")
+        cmd = f"cp -a '{extract_temp}'/* / 2>/dev/null || true"
+        subprocess.run(cmd, shell=True)
+        emit_progress(94)
+
+        # 5. Run post-install.sh if present
+        if has_post:
+            log("Executing post-install script...")
+            subprocess.run([str(post_script)], check=False)
+        emit_progress(97)
+
+        # 6. Update version information
+        log(f"Updating system version to {new_version}...")
+        Path(VERSION_FILE).parent.mkdir(parents=True, exist_ok=True)
+        Path(VERSION_FILE).write_text(new_version.lstrip("vV") + "\n", encoding="utf-8")
+
+        if os.path.exists(OS_RELEASE):
+            try:
+                content = Path(OS_RELEASE).read_text(encoding="utf-8")
+                v_clean = new_version.lstrip("vV")
+                if "BUILD_ID=" in content:
+                    content = re.sub(r'BUILD_ID="?[^"\n]+"?', f'BUILD_ID="{v_clean}"', content)
+                if "VERSION_ID=" in content:
+                    content = re.sub(r'VERSION_ID="?[^"\n]+"?', f'VERSION_ID="{v_clean}"', content)
+                Path(OS_RELEASE).write_text(content, encoding="utf-8")
+            except Exception as e:
+                log(f"Failed to update /etc/os-release: {e}")
+
+        emit_progress(100)
+        log("Update completed successfully! System ready for restart.")
+        return 0
+
+    except Exception as e:
+        log(f"Update extraction/application error: {e}")
+        return 7
+    finally:
+        shutil.rmtree(extract_temp, ignore_errors=True)
+        if not local_tar and tar_path.exists():
+            tar_path.unlink(missing_ok=True)
+
+
+def main():
+    args = sys.argv[1:]
+
+    # Only elevate to root if applying updates
+    if args and args[0] in ("version", "--version"):
+        print(get_current_version())
+        sys.exit(0)
+
+    if args and args[0] in ("-h", "--help", "help"):
+        print("Usage: reverie-updater [check|apply|version|test-update <tar>]")
+        sys.exit(0)
+
+    cfg = load_config()
+
+    if args and args[0] in ("check", "--check"):
+        sys.exit(cmd_check(cfg))
+
+    if os.geteuid() != 0:
+        log("Elevating privileges to root...")
+        os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
+
+    if not args or args[0] in ("apply", "update", "--apply"):
+        sys.exit(cmd_apply(cfg))
+    elif args[0] == "test-update" and len(args) > 1:
+        sys.exit(cmd_apply(cfg, local_tar=args[1]))
+    else:
+        log(f"Unknown argument: {args[0]}")
+        sys.exit(7)
+
+
+if __name__ == "__main__":
+    main()
