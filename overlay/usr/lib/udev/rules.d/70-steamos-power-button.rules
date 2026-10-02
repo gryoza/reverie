@@ -1,0 +1,2 @@
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="pmic_pwrkey", ENV{STEAMOS_POWER_BUTTON}="1", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="input", KERNEL=="event*", ENV{STEAMOS_POWER_BUTTON}=="1", MODE="0660", TAG+="uaccess"

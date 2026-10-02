@@ -1,0 +1,14 @@
+[Unit]
+Description=AYANEO Pocket S Hardware Keys Daemon
+DefaultDependencies=no
+After=systemd-udevd.service
+Before=gamescope-session.service basic.target graphical.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/ayaneo-keys.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=basic.target multi-user.target graphical.target default.target
