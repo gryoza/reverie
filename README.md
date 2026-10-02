@@ -120,7 +120,9 @@ Open an [Issue](https://github.com/gryoza/reverie/issues) and attach these files
 
 ## Credits & Acknowledgements
 
-* **[Valve Corporation](https://www.valvesoftware.com/)** - SteamOS, Gamescope, Deckard userspace, and Steam client.
-* **[ROCKNIX Team](https://github.com/ROCKNIX)** - ABL bootloader, device tree sources, and Qualcomm Linux enablement.
-* **[MaSieS4Fun](https://github.com/MaSieS4Fun/SteamOS-Ubuntu)** - PLugins and foundational scripts.
-* **[Armada](https://github.com/armada-os/armada)** - Qualcomm Linux packaging reference, firmware integration, and architectural inspiration.
+Reverie OS is built upon the foundational work of the open-source and handheld gaming communities. Detailed component breakdowns, upstream sources, and author credits are documented in [**CREDITS.md**](CREDITS.md).
+
+* **[Valve Corporation](https://www.valvesoftware.com/)** — SteamOS, Gamescope, Deckard ARM64 userspace, and Steam client.
+* **[ROCKNIX Team](https://github.com/ROCKNIX)** — ABL bootloader, device tree sources, and Qualcomm Linux enablement.
+* **[Armada](https://github.com/armada-os/armada)** — Qualcomm Linux packaging reference, firmware integration, and architectural inspiration.
+* **[MaSieS4Fun](https://github.com/MaSieS4Fun/SteamOS-Ubuntu)** — Foundational scripts and Snapdragon handheld research.
