@@ -17,8 +17,10 @@ INSTALLER_SRC="${SCRIPT_DIR}/reverie-installer.py"
 
 WORK_DIR="${WORK_DIR:-${REPO_DIR}/build_output}"
 OUTPUT_IMG="${1:-${WORK_DIR}/reverie-os-v1.0.img}"
+OUTPUT_GZ="${OUTPUT_IMG}.gz"
+OUTPUT_GZ_SHA="${OUTPUT_GZ}.sha256"
 OUTPUT_ZST="${OUTPUT_IMG}.zst"
-OUTPUT_SHA="${OUTPUT_ZST}.sha256"
+OUTPUT_ZST_SHA="${OUTPUT_ZST}.sha256"
 
 KERNEL_MODULES_DIR="${KERNEL_MODULES_DIR:-}"
 FIRMWARE_DIR="${FIRMWARE_DIR:-}"
@@ -293,12 +295,26 @@ umount "${MNT_ESP}"
 losetup -d "${LOOP_DISK}"
 unset LOOP_DISK
 
-echo "=== Step 9: Compressing image with Zstandard ==="
-zstd -T0 -3 -f -k "${OUTPUT_IMG}" -o "${OUTPUT_ZST}"
-sha256sum "${OUTPUT_ZST}" > "${OUTPUT_SHA}"
+echo "=== Step 9: Compressing release disk images ==="
+echo "Generating .img.gz archive..."
+if command -v pigz >/dev/null 2>&1; then
+    pigz -k -f -6 "${OUTPUT_IMG}"
+else
+    gzip -k -f -6 "${OUTPUT_IMG}"
+fi
+sha256sum "${OUTPUT_GZ}" > "${OUTPUT_GZ_SHA}"
+
+if command -v zstd >/dev/null 2>&1; then
+    echo "Generating .img.zst archive..."
+    zstd -T0 -3 -f -k "${OUTPUT_IMG}" -o "${OUTPUT_ZST}"
+    sha256sum "${OUTPUT_ZST}" > "${OUTPUT_ZST_SHA}"
+fi
 
 echo "=========================================================="
 echo " BUILD SUCCESSFUL!"
 echo " Image:   ${OUTPUT_IMG}"
-echo " Archive: ${OUTPUT_ZST}"
+echo " Gzip:    ${OUTPUT_GZ}"
+if [[ -f "${OUTPUT_ZST}" ]]; then
+    echo " Zstd:    ${OUTPUT_ZST}"
+fi
 echo "=========================================================="
