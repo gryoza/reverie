@@ -38,14 +38,12 @@ Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 | **AYANEO** | **Pocket ACE** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **AYANEO** | **Pocket S2** | Snapdragon 8 Gen 3 (SM8650) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **AYN** | **Odin 2 / Mini / Portal** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **AYN** | **Odin 3** | Snapdragon 8 Elite (SM8750) | 🟡 *Supported (Target)* | Compatible via ROCKNIX ABL device tree. |
 | **AYN** | **Thor** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **Retroid** | **Pocket 6 / Top-DPad** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **Retroid** | **Pocket Nova** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **Retroid** | **Pocket 5 / Mini** | Snapdragon 865 (SM8250) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **Retroid** | **Pocket Flip 2** | Snapdragon 865 (SM8250) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
 | **KONKR** | **Pocket FIT** | Snapdragon 8 Gen 3 (SM8650) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **KONKR** | **Pocket FIT Elite** | Snapdragon 8 Elite (SM8750) | 🟡 *Supported (Target)* | Compatible via ROCKNIX ABL device tree. |
 
 ---
 
@@ -55,7 +53,7 @@ Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
   * **100% Portable from MicroSD**: Run entirely off an SD card without modifying or touching your device's internal storage - safe, non-destructive, and perfect for testing.
   * **One-Click Internal Dual-Boot**: Want maximum UFS read/write speeds? Launch the **Reverie Installer** directly from the Desktop. It safely resizes your Android user data partition and installs Reverie OS right alongside Android in dual-boot, letting you switch between Android and SteamOS seamlessly via the ABL menu.
 * **Instant Storage Auto-Expansion (`reverie-growfs`)**:
-  Download a lightweight 12 GB image. On first boot, Reverie automatically and safely detects your MicroSD card size and expands the Btrfs rootfs to 100% of the card. **Includes hard safety guards to prevent altering internal UFS storage or Android partitions.**
+  Download a lightweight 12 GB image. On first boot, Reverie automatically and safely detects your MicroSD card size and expands the Btrfs rootfs to 100% of the card.
 * **Reverie Power (Decky Loader Plugin)**:
   Dedicated handheld power management engineered specifically for Snapdragon:
   * **TDP & Frequencies**: Adjust CPU cluster governors, CPU limits, and Adreno GPU performance profiles on the fly.
@@ -72,8 +70,6 @@ Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
   Gamescope rendered directly on MSM DRM with hardware display rotation and instant plug-and-play monitor/dock detection in both Game Mode and Desktop Mode.
 * **KDE Plasma Desktop Mode**:
   Switch seamlessly between Steam Game Mode and a full-featured Wayland desktop session for web browsing and productivity.
-* **Integrated OTA Updates (`reverie-updater`)**:
-  Built-in OTA updater connected directly to GitHub Releases for one-click system upgrades.
 
 ---
 
@@ -85,7 +81,7 @@ Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 3. Image flashing software e.g. [balenaEtcher](https://etcher.balena.io/) 
 
 ### Flashing & Booting
-1. Download the latest `reverie-os-v1.0-release.img.xz` from the [**Releases**](https://github.com/gryoza/reverie/releases) page.
+1. Download the latest `reverie-os-v1.0-release.img.gz` from the [**Releases**](https://github.com/gryoza/reverie/releases) page.
 2. Flash the compressed file directly to your MicroSD card using balenaEtcher.
 3. Insert the card into your console.
 4. Enter ROCKNIX ABL menu during boot:
