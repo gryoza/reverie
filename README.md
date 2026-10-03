@@ -85,7 +85,7 @@ Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 3. Image flashing software e.g. [balenaEtcher](https://etcher.balena.io/) 
 
 ### Flashing & Booting
-1. Download the latest `reverie-os-v1.0-release.img.xz` from the [**Releases**](https://github.com/gryoza/reverie/releases) page.
+1. Download the latest `reverie-os-v1.0-release.img.gz` from the [**Releases**](https://github.com/gryoza/reverie/releases) page.
 2. Flash the compressed file directly to your MicroSD card using balenaEtcher.
 3. Insert the card into your console.
 4. Enter ROCKNIX ABL menu during boot:
