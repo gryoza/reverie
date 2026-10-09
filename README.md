@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>Pure Valve SteamOS Distribution for Qualcomm Snapdragon Gaming Handhelds</strong><br>
-  Built on official Valve SteamOS ARM (Deckard / Frame) userspace, optimized for Snapdragon G3x Gen 2, 8 Gen 3, and 8 Gen 2 (SM8550 & SM8650).
+  Built on official Valve SteamOS ARM (Deckard / Frame) userspace, optimized for Snapdragon G3x Gen 2, 8 Gen 3, 8 Elite, and 8 Gen 2 (SM8550, SM8650, SM8750 & SM8250).
 </p>
 
 ---
@@ -32,44 +32,48 @@ Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 | Manufacturer | Device Model | SoC / Platform | Status | Hardware Notes |
 | :--- | :--- | :--- | :---: | :--- |
 | **AYANEO** | **Pocket S (1K / 2K)** | Snapdragon G3x Gen 2 (SM8550) | 🟢 **Verified & Tested** | **Reference device**. Audio, Bypass Charging, Display Output, TDP control, fan curves, inputs, and gaming verified. |
-| **AYANEO** | **Pocket EVO** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **AYANEO** | **Pocket DMG** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **AYANEO** | **Pocket DS** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **AYANEO** | **Pocket ACE** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **AYANEO** | **Pocket S2** | Snapdragon 8 Gen 3 (SM8650) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **AYN** | **Odin 2 / Mini / Portal** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **AYN** | **Thor** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **Retroid** | **Pocket 6 / Top-DPad** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **Retroid** | **Pocket Nova** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **Retroid** | **Pocket 5 / Mini** | Snapdragon 865 (SM8250) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **Retroid** | **Pocket Flip 2** | Snapdragon 865 (SM8250) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
-| **KONKR** | **Pocket FIT** | Snapdragon 8 Gen 3 (SM8650) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree. |
+| **AYANEO** | **Pocket EVO** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **AYANEO** | **Pocket DMG** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **AYANEO** | **Pocket DS** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **AYANEO** | **Pocket ACE** | Snapdragon G3x Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **AYANEO** | **Pocket S2** | Snapdragon 8 Gen 3 (SM8650) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **AYN** | **Odin 2 / Mini / Portal** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **AYN** | **Odin 3** | Snapdragon 8 Elite (SM8750) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **AYN** | **Thor** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **Retroid** | **Pocket 6 / Top-DPad** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **Retroid** | **Pocket Nova** | Snapdragon 8 Gen 2 (SM8550) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **Retroid** | **Pocket 5 / Mini** | Snapdragon 865 (SM8250) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **Retroid** | **Pocket Flip 2** | Snapdragon 865 (SM8250) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **KONKR** | **Pocket FIT** | Snapdragon 8 Gen 3 (SM8650) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
+| **KONKR** | **Pocket FIT Elite** | Snapdragon 8 Elite (SM8750) | 🟡 *Supported (Untested)* | Compatible via ROCKNIX ABL device tree & InputPlumber. |
 
 ---
 
 ## Key Features
 
-* **Flexible Dual-Boot & Built-in Internal Installer (`reverie-installer`)**:
-  * **100% Portable from MicroSD**: Run entirely off an SD card without modifying or touching your device's internal storage - safe, non-destructive, and perfect for testing.
-  * **One-Click Internal Dual-Boot**: Want maximum UFS read/write speeds? Launch the **Reverie Installer** directly from the Desktop. It safely resizes your Android user data partition and installs Reverie OS right alongside Android in dual-boot, letting you switch between Android and SteamOS seamlessly via the ABL menu.
+* **Dual-Boot and Built-in Internal Installer (`reverie-installer`)**:
+  * **Portable from MicroSD**: Run entirely off an SD card without modifying or touching your device's internal storage.
+  * **Internal Dual-Boot**: Launch the **Reverie Installer** directly from the Desktop. It safely resizes your Android user data partition and installs Reverie OS right alongside Android in dual-boot, letting you switch between Android and SteamOS seamlessly via the ABL menu.
 * **Instant Storage Auto-Expansion (`reverie-growfs`)**:
   Download a lightweight 12 GB image. On first boot, Reverie automatically and safely detects your MicroSD card size and expands the Btrfs rootfs to 100% of the card.
 * **Reverie Power (Decky Loader Plugin)**:
-  Dedicated handheld power management engineered specifically for Snapdragon:
+  Dedicated handheld power management made for Snapdragon:
   * **TDP & Frequencies**: Adjust CPU cluster governors, CPU limits, and Adreno GPU performance profiles on the fly.
   * **Custom Fan Curves**: Switch between Relaxed, Moderate, and Aggressive.
 * **Hardware Controls (`ayaneo-keys`)**:
   * **Home / AYANEO Key**: Directly triggers the Steam Menu overlay.
   * **Menu / Custom Key**: Directly triggers the Quick Access Menu (QAM).
   * **Programmable buttons (LC / RC)**: Mapped as direct virtual gamepad buttons.
+* **Display Engine & USB-C Hotplug**:
+  Gamescope rendered directly on MSM DRM with hardware display rotation and instant plug-and-play monitor/dock detection in both Game Mode and Desktop Mode.
 * **Turnip Mesa Vulkan Driver**:
   Native Vulkan 1.4 driver for Qualcomm Adreno GPUs.
 * **FEX-Emu & Proton Gaming**:
   Optimized x86_64 translation stack running native Steam x86_64 games and Windows titles via Proton on ARM64.
-* **Display Engine & USB-C Hotplug**:
-  Gamescope rendered directly on MSM DRM with hardware display rotation and instant plug-and-play monitor/dock detection in both Game Mode and Desktop Mode.
 * **KDE Plasma Desktop Mode**:
   Switch seamlessly between Steam Game Mode and a full-featured Wayland desktop session for web browsing and productivity.
+* **Integrated OTA Updates (`reverie-updater`)**:
+  Built-in OTA updater connected directly to GitHub Releases for one-click system upgrades.
 
 ---
 
@@ -80,8 +84,8 @@ Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 2. [ROCKNIX ABL](https://github.com/ROCKNIX/abl) installed on your device.
 3. Image flashing software e.g. [balenaEtcher](https://etcher.balena.io/) 
 
-### Flashing & Booting
-1. Download the latest `reverie-os-v1.0-release.img.gz` from the [**Releases**](https://github.com/gryoza/reverie/releases) page.
+### Flashing & Booting (Clean Install)
+1. Download the latest `reverie-os-v1.1-release.img.gz` from the [**Releases**](https://github.com/gryoza/reverie/releases) page.
 2. Flash the compressed file directly to your MicroSD card using balenaEtcher.
 3. Insert the card into your console.
 4. Enter ROCKNIX ABL menu during boot:
@@ -91,30 +95,50 @@ Reverie OS is mainly built for AYANEO Pocket S 1k/2k **SM8550 (8 Gen 2 / G3x Gen
 5. The first boot takes **1–2 minutes** while the filesystem expands and Steam prepares the environment.
 6. (Optional) Switch to Desktop Mode and open Reverie installer for internal install.
 
+### Updating Reverie OS (OTA)
+If you already have Reverie OS installed, you do not need to reflash your card:
+* **Via Steam Game Mode**: Go to **Settings** → **System** → **Check for Updates** and apply the update.
+* **Via Terminal**: Download `reverie-update-vX.X.X.tar.zst` and run:
+  ```bash
+  sudo reverie-updater --apply /path/to/reverie-update-vX.X.X.tar.zst
+  ```
+  Or to check and apply directly from GitHub Releases:
+  ```bash
+  sudo reverie-updater --apply
+  ```
+
 ### System Credentials
 * **User**: `steamos`
 * **Password**: `reverie`
 
 ---
 
-## Reporting Issues & Sending Debug Logs
+## Reporting Issues & Diagnostic Logs
 
-Reverie includes an automated hardware and boot logger daemon.
+Reverie OS features an automated hardware diagnostic and logging system.
 
-### Quick CLI Management:
-1. `reverie-debug status`   - Check current logger status
-2. `reverie-debug enable`   - Enable boot diagnostics
-3. `reverie-debug disable`  - Disable logger
-4. `reverie-debug clean`    - Clear existing log files
-5. `reverie-debug collect`  - Bundle logs into `/home/steamos/reverie-debug-<date>.tar.gz`
+### FAT32 Boot Partition Logs (`/logs/`):
+All boot logs and diagnostics are written directly to the **`logs/`** folder on the first partition (**FAT32**, labeled `REVERIE`). 
+You can inspect them on any **Windows PC, macOS, Linux, or Android** device simply by inserting your MicroSD card:
 
-Boot debug logs are automatically saved to `/home/steamos/`:
-- `BOOT-DEBUG-dmesg.txt`
-- `BOOT-DEBUG-journal.txt`
-- `BOOT-DEBUG-audio.txt`
-- `BOOT-DEBUG-late.txt`
+* **`reverie-boot-log.txt`** — High-level overview of the latest boot (failed units, session status, devices).
+* **`dmesg.log`** — Full Linux kernel ring buffer.
+* **`journal.log`** — Full systemd journal.
+* **`journal-errors.log`** — Errors and critical alerts extracted from the journal.
+* **`gamescope.log`** — Gamescope compositor session logs and crashes.
+* **`audio.log`** — PipeWire, WirePlumber, ALSA sinks, sources, and card states.
+* **`display.log`** — DRM connectors, display modes, panel rotation, and backlight status.
+* **`system-info.txt`** — System hardware specs, kernel cmdline, OS release, and disk partitions.
 
-Open an [Issue](https://github.com/gryoza/reverie/issues) and attach these files so I can diagnose and fix it for your device!
+### Diagnostic CLI Tool (`reverie-debug`):
+Manage diagnostics directly from Konsole in Desktop Mode or via SSH:
+* `reverie-debug status` — Check logger status and list log files stored on the FAT32 partition.
+* `reverie-debug enable` — Enable diagnostic logging on boot.
+* `reverie-debug disable` — Disable diagnostic logging.
+* `reverie-debug clean` — Wipe all log files from the FAT32 `/logs/` folder.
+* `reverie-debug boot-dump manual` — Trigger an immediate live diagnostics dump to FAT32 `/logs/`.
+
+Attach these files when opening an [Issue](https://github.com/gryoza/reverie/issues) to help diagnose hardware problems for your console!
 
 ---
 
