@@ -19,7 +19,11 @@ mkdir -p "$USER_MANGO"
 sm8550_mango_env() {
   export MANGOHUD_CONFIG=read_cfg
   export MANGOHUD_CONFIGFILE="${USER_MANGO}/MangoHud.conf"
-  export MANGOHUD_PRESETSFILE="${USER_MANGO}/presets.conf"
+  if [[ -f "${USER_MANGO}/presets.conf" ]]; then
+    export MANGOHUD_PRESETSFILE="${USER_MANGO}/presets.conf"
+  else
+    unset MANGOHUD_PRESETSFILE
+  fi
   export GAMESCOPE_MANGOAPP_SOCKET_DISABLE=0
   # Inherit Gamescope's WSI/Vulkan environment. Forcing classic GLX makes
   # mangoapp request DRM dumb buffers on SM8550 and produces a blank window.

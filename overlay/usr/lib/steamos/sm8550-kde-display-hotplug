@@ -1,10 +1,15 @@
 #!/bin/bash
-# Auto-configure displays in KDE Plasma (Wayland) for Pocket S & external DP
+# Auto-configure displays in KDE Plasma (Wayland)
+# - Turns off internal console display when external monitor is connected
+# - Makes external display primary with native resolution & scale 1.0
+# - Restores internal display with correct rotation & scale 1.0 when disconnected
 set +e
 export PATH="/usr/bin:/bin${PATH:+:$PATH}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 
 if [[ -f /etc/reverie/debug-enabled ]]; then
-  LOGFILE="/home/steamos/sm8550-kde-display.log"
+  LOGFILE="/tmp/sm8550-kde-display.log"
 else
   LOGFILE="/dev/null"
 fi
@@ -13,24 +18,16 @@ log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') sm8550-kde-display: $*" >>"$LOGFILE" 2>/dev/null || true
 }
 
-drm_dp_connected() {
-  for f in /sys/class/drm/card*-DP-*/status /sys/class/drm/card*-HDMI-*/status; do
-    [[ -r "$f" ]] || continue
-    [[ "$(tr -d '[:space:]' <"$f")" == "connected" ]] && return 0
-  done
-  return 1
-}
-
-# Wait for KScreen to be available over D-Bus
+# Wait for KScreen to be available over Wayland / D-Bus
 wait_kscreen() {
-  for i in $(seq 1 20); do
-    if kscreen-doctor -o >/dev/null 2>&1; then
+  for i in $(seq 1 30); do
+    if [[ -S "${XDG_RUNTIME_DIR}/${WAYLAND_DISPLAY}" ]] && kscreen-doctor -o >/dev/null 2>&1; then
       log "kscreen-doctor available at iteration $i"
       return 0
     fi
     sleep 0.5
   done
-  log "kscreen-doctor not ready after 10s"
+  log "kscreen-doctor not ready after 15s"
   return 1
 }
 
@@ -38,20 +35,107 @@ if ! wait_kscreen; then
   exit 0
 fi
 
-if drm_dp_connected; then
-  log "DP connected, enabling external display DP-1 in KDE..."
-  for attempt in $(seq 1 5); do
-    if kscreen-doctor output.DP-1.enable output.DP-1.primary output.DP-1.mode.1920x1080@60 >>"$LOGFILE" 2>&1 \
-       || kscreen-doctor output.DP-1.enable output.DP-1.primary >>"$LOGFILE" 2>&1; then
-      log "Successfully enabled DP-1 as primary display in KDE"
+# Find primary internal panel (DSI-2 on Thor if connected, otherwise DSI-1)
+PRIMARY_PANEL="DSI-1"
+for f in /sys/class/drm/card*-DSI-2/status; do
+  if [[ -r "$f" ]] && [[ "$(tr -d '[:space:]' <"$f")" == "connected" ]]; then
+    PRIMARY_PANEL="DSI-2"
+    break
+  fi
+done
+
+# Internal panel rotation
+ROTATION="right"
+DT_MODEL=""
+[[ -r /sys/firmware/devicetree/base/model ]] && DT_MODEL="$(tr -d '\0' < /sys/firmware/devicetree/base/model 2>/dev/null || true)"
+case "$DT_MODEL" in
+  *"Pocket DMG"*|*"Pocket EVO"*|*"Pocket DS"*|*"Odin 2 Portal"*|*"Retroid Pocket 5"*|*"Retroid Pocket 6"*|*"Retroid Pocket Flip2"*)
+    ROTATION="left"
+    ;;
+  *"Retroid Pocket Nova"*)
+    ROTATION="none"
+    ;;
+esac
+
+# Find connected external display (e.g. DP-1, HDMI-A-1)
+EXTERNAL_CONNECTOR=""
+for f in /sys/class/drm/card*-DP-*/status /sys/class/drm/card*-HDMI-*/status; do
+  [[ -r "$f" ]] || continue
+  if [[ "$(tr -d '[:space:]' <"$f")" == "connected" ]]; then
+    base="$(basename "$(dirname "$f")")"
+    EXTERNAL_CONNECTOR="${base#*-}"
+    break
+  fi
+done
+
+if [[ -n "$EXTERNAL_CONNECTOR" ]]; then
+  log "External display connected ($EXTERNAL_CONNECTOR): making primary and disabling internal panel ($PRIMARY_PANEL)..."
+  
+  # Wait briefly for kscreen to discover the external connector if newly plugged
+  for w in $(seq 1 6); do
+    if kscreen-doctor -o 2>/dev/null | grep -q "Output: .* ${EXTERNAL_CONNECTOR}"; then
       break
     fi
-    sleep 1
+    sleep 0.5
   done
+
+  # Build list of active internal outputs that kscreen actually knows about
+  internal_disables=()
+  for p in DSI-1 DSI-2 "$PRIMARY_PANEL"; do
+    if kscreen-doctor -o 2>/dev/null | grep -q "Output: .* ${p}"; then
+      # Avoid duplicates in list
+      if [[ ! " ${internal_disables[*]} " =~ " output.${p}.disable " ]]; then
+        internal_disables+=("output.${p}.disable")
+      fi
+    fi
+  done
+
+  # Atomically enable external display as primary with 1.0 scale and disable internal screen
+  switched=0
+  for attempt in $(seq 1 5); do
+    if kscreen-doctor "output.${EXTERNAL_CONNECTOR}.enable" \
+                      "output.${EXTERNAL_CONNECTOR}.primary" \
+                      "output.${EXTERNAL_CONNECTOR}.priority.1" \
+                      "output.${EXTERNAL_CONNECTOR}.scale.1" \
+                      "output.${EXTERNAL_CONNECTOR}.rotation.none" \
+                      "output.${EXTERNAL_CONNECTOR}.position.0,0" \
+                      "${internal_disables[@]}" >>"$LOGFILE" 2>&1; then
+      log "Successfully enabled $EXTERNAL_CONNECTOR as primary and disabled internal display"
+      switched=1
+      break
+    fi
+    sleep 0.5
+  done
+
+  # Fallback if atomic command failed
+  if (( switched == 0 )); then
+    log "Atomic switch failed, attempting staged fallback for $EXTERNAL_CONNECTOR..."
+    kscreen-doctor "output.${EXTERNAL_CONNECTOR}.enable" "output.${EXTERNAL_CONNECTOR}.primary" >>"$LOGFILE" 2>&1 || true
+    for dis in "${internal_disables[@]}"; do
+      kscreen-doctor "$dis" >>"$LOGFILE" 2>&1 || true
+    done
+  fi
 else
-  log "DP disconnected, ensuring DSI-1 is primary"
-  kscreen-doctor output.DSI-1.enable output.DSI-1.primary >>"$LOGFILE" 2>&1 || true
+  log "External display disconnected: restoring internal display ($PRIMARY_PANEL) as primary..."
+  kscreen-doctor "output.${PRIMARY_PANEL}.enable" \
+                 "output.${PRIMARY_PANEL}.primary" \
+                 "output.${PRIMARY_PANEL}.priority.1" \
+                 "output.${PRIMARY_PANEL}.rotation.${ROTATION}" \
+                 "output.${PRIMARY_PANEL}.scale.1" \
+                 "output.${PRIMARY_PANEL}.position.0,0" >>"$LOGFILE" 2>&1 || \
+    kscreen-doctor "output.${PRIMARY_PANEL}.enable" "output.${PRIMARY_PANEL}.primary" >>"$LOGFILE" 2>&1 || true
+
+  # Clean up disconnected external connectors if still registered in kscreen
+  for f in /sys/class/drm/card*-DP-*/status /sys/class/drm/card*-HDMI-*/status; do
+    [[ -r "$f" ]] || continue
+    if [[ "$(tr -d '[:space:]' <"$f")" != "connected" ]]; then
+      base="$(basename "$(dirname "$f")")"
+      ext_name="${base#*-}"
+      if kscreen-doctor -o 2>/dev/null | grep -q "Output: .* ${ext_name}"; then
+        kscreen-doctor "output.${ext_name}.disable" >>"$LOGFILE" 2>&1 || true
+      fi
+    fi
+  done
 fi
 
-chown 1000:1000 "$LOGFILE" 2>/dev/null || true
 exit 0

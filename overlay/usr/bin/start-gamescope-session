@@ -1,6 +1,6 @@
 #!/bin/sh
 if [ -f /etc/reverie/debug-enabled ]; then
-  exec > /home/steamos/START-GAMESCOPE-DEBUG.txt 2>&1
+  exec > /tmp/START-GAMESCOPE-DEBUG.txt 2>&1
   echo "=== start-gamescope-session $(date) ==="
   echo "USER=$(id -un), UID=$(id -u), XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR, DBUS=$DBUS_SESSION_BUS_ADDRESS"
 fi
