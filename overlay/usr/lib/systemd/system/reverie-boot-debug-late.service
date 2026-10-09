@@ -1,0 +1,13 @@
+[Unit]
+Description=Reverie Boot Diagnostic Logger (after display manager)
+After=display-manager.service graphical.target
+Wants=reverie-boot-debug.service
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 20
+ExecStart=/usr/bin/reverie-debug boot-dump late
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target

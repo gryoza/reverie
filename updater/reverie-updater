@@ -63,6 +63,21 @@ def load_config() -> dict:
                             cfg[k] = v
         except Exception as e:
             log(f"Warning reading config: {e}")
+
+    # Read Steam Game Mode selected branch if present
+    branch_file = "/var/lib/steamos/selected-branch"
+    if os.path.exists(branch_file):
+        try:
+            b = Path(branch_file).read_text(encoding="utf-8").strip().lower()
+            if b in ("beta", "bc"):
+                cfg["CHANNEL"] = "beta"
+            elif b in ("preview", "pc", "main", "staging"):
+                cfg["CHANNEL"] = "preview"
+            elif b in ("rel", "stable"):
+                cfg["CHANNEL"] = "stable"
+        except Exception as e:
+            log(f"Warning reading branch: {e}")
+
     return cfg
 
 
@@ -117,12 +132,9 @@ def is_newer(remote: str, local: str) -> bool:
 
 
 def query_github_release(repo: str, channel: str = "stable") -> dict:
-    url = f"https://api.github.com/repos/{repo}/releases/latest"
-    if channel != "stable":
-        url = f"https://api.github.com/repos/{repo}/releases"
-
+    channel = channel.lower().strip()
     req = urllib.request.Request(
-        url,
+        f"https://api.github.com/repos/{repo}/releases",
         headers={
             "User-Agent": "Reverie-Updater/1.0",
             "Accept": "application/vnd.github.v3+json"
@@ -130,12 +142,27 @@ def query_github_release(repo: str, channel: str = "stable") -> dict:
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode("utf-8"))
-            if isinstance(data, list):
-                if not data:
-                    return {}
-                return data[0]
-            return data
+            releases = json.loads(response.read().decode("utf-8"))
+            if not isinstance(releases, list):
+                return {}
+
+            for rel in releases:
+                tag = rel.get("tag_name", "").lower()
+                is_prerelease = rel.get("prerelease", False)
+
+                if channel == "stable":
+                    # Strictly stable: not a pre-release, no beta/preview/alpha/rc in tag
+                    if not is_prerelease and not any(k in tag for k in ("beta", "preview", "alpha", "rc")):
+                        return rel
+                elif channel == "beta":
+                    # Stable or Beta (exclude preview/alpha/nightly)
+                    if not any(k in tag for k in ("preview", "alpha", "nightly")):
+                        return rel
+                elif channel in ("preview", "main"):
+                    # Any release (bleeding edge, preview, alpha, beta, stable)
+                    return rel
+
+            return {}
     except urllib.error.HTTPError as e:
         log(f"GitHub API HTTP error {e.code}: {e.reason}")
         return {}
@@ -390,32 +417,43 @@ def cmd_apply(cfg: dict, local_tar: str = None) -> int:
 
 
 def main():
-    args = sys.argv[1:]
+    raw_args = sys.argv[1:]
+    args = [
+        a for a in raw_args
+        if not a.startswith("--enable-duplicate-detection")
+        and not a.startswith("--supports-duplicate-detection")
+    ]
 
     # Only elevate to root if applying updates
-    if args and args[0] in ("version", "--version"):
+    if any(a in ("version", "--version") for a in args):
         print(get_current_version())
         sys.exit(0)
 
-    if args and args[0] in ("-h", "--help", "help"):
+    if any(a in ("-h", "--help", "help") for a in args):
         print("Usage: reverie-updater [check|apply|version|test-update <tar>]")
         sys.exit(0)
 
     cfg = load_config()
 
-    if args and args[0] in ("check", "--check"):
+    if any(a in ("check", "--check") for a in args):
         sys.exit(cmd_check(cfg))
 
     if os.geteuid() != 0:
         log("Elevating privileges to root...")
         os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
 
-    if not args or args[0] in ("apply", "update", "--apply"):
+    if not args or any(a in ("apply", "update", "--apply") for a in args):
         sys.exit(cmd_apply(cfg))
-    elif args[0] == "test-update" and len(args) > 1:
-        sys.exit(cmd_apply(cfg, local_tar=args[1]))
+    elif "test-update" in args:
+        idx = args.index("test-update")
+        tar_file = args[idx + 1] if idx + 1 < len(args) else ""
+        if tar_file:
+            sys.exit(cmd_apply(cfg, local_tar=tar_file))
+        else:
+            log("Missing tar path for test-update")
+            sys.exit(7)
     else:
-        log(f"Unknown argument: {args[0]}")
+        log(f"Unknown argument: {args[0] if args else ''}")
         sys.exit(7)
 
 

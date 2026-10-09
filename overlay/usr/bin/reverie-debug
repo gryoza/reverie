@@ -1,0 +1,480 @@
+#!/bin/bash
+# ==============================================================================
+# Reverie OS — Unified Diagnostic and Debug Management Utility
+# ==============================================================================
+# Collects comprehensive diagnostics (Gamescope, Audio, DRM, dmesg, journal)
+# and stores them all neatly inside the /logs/ directory on the FAT32 partition
+# (REVERIE), accessible from Windows, macOS, and Android.
+# ==============================================================================
+
+set -euo pipefail
+
+FLAG="/etc/reverie/debug-enabled"
+
+get_fat32_mount() {
+  # 1. Check if REVERIE partition is already mounted
+  local existing
+  existing=$(lsblk -rnpo LABEL,MOUNTPOINT 2>/dev/null | awk '$1=="REVERIE" && $2!="" {print $2; exit}')
+  if [[ -n "$existing" && -d "$existing" && -w "$existing" ]]; then
+    echo "$existing"
+    return 0
+  fi
+
+  # 2. Find device by label or partlabel
+  local dev=""
+  for candidate in /dev/disk/by-label/REVERIE /dev/disk/by-label/ESP /dev/disk/by-partlabel/boot /dev/disk/by-partlabel/esp; do
+    if [[ -b "$candidate" ]]; then
+      dev="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$dev" ]]; then
+    dev=$(lsblk -rnpo NAME,FSTYPE 2>/dev/null | awk '$2=="vfat"{print $1; exit}')
+  fi
+
+  if [[ -n "$dev" && -b "$dev" ]]; then
+    local mnt
+    mnt=$(mktemp -d -t reverie-fat32.XXXXXX)
+    if mount -t vfat -o rw,umask=0000 "$dev" "$mnt" 2>/dev/null; then
+      echo "$mnt"
+      return 0
+    fi
+    rm -rf "$mnt" 2>/dev/null || true
+  fi
+
+  return 1
+}
+
+release_fat32_mount() {
+  local mnt="${1:-}"
+  [[ -z "$mnt" ]] && return 0
+  if [[ "$mnt" =~ ^/tmp/reverie-fat32 ]]; then
+    sync "$mnt" 2>/dev/null || true
+    umount "$mnt" 2>/dev/null || true
+    rm -rf "$mnt" 2>/dev/null || true
+  else
+    sync "$mnt" 2>/dev/null || true
+  fi
+}
+
+check_root() {
+  if [[ "$EUID" -ne 0 ]]; then
+    if command -v sudo >/dev/null 2>&1; then
+      exec sudo "$0" "$@"
+    else
+      echo "ERROR: Must be run as root." >&2
+      exit 1
+    fi
+  fi
+}
+
+# Generate the comprehensive overview summary log
+generate_summary_log() {
+  local tag="$1"
+  local stamp="$2"
+  local out_file="$3"
+
+  {
+    echo "=========================================================="
+    echo " Reverie OS Diagnostic Summary (${tag})"
+    echo " Timestamp: ${stamp}"
+    echo " System:    $(uname -a 2>/dev/null || true)"
+    if [[ -f /etc/reverie/version ]]; then
+      echo " Version:   $(cat /etc/reverie/version 2>/dev/null)"
+    fi
+    if [[ -f /var/lib/steamos/selected-branch ]]; then
+      echo " Branch:    $(cat /var/lib/steamos/selected-branch 2>/dev/null)"
+    fi
+    echo "=========================================================="
+    echo
+    echo "----- 1. Kernel Command Line (/proc/cmdline) -----"
+    cat /proc/cmdline 2>/dev/null || true
+    echo
+    echo "----- 2. Failed Systemd Units -----"
+    systemctl --failed --no-pager 2>/dev/null || true
+    echo
+    echo "----- 3. Display / Session State -----"
+    echo "sddm.service: $(systemctl is-active sddm.service 2>/dev/null || echo unknown)"
+    echo "gamescope-session.service: $(systemctl is-active gamescope-session.service 2>/dev/null || echo unknown)"
+    loginctl 2>/dev/null || true
+    echo
+    echo "----- 4. DRM Connectors & Status -----"
+    for c in /sys/class/drm/card*-*; do
+      [[ -e "$c/status" ]] || continue
+      echo "$(basename "$c"): status=$(cat "$c/status" 2>/dev/null) modes=$(head -1 "$c/modes" 2>/dev/null)"
+    done
+    echo
+    echo "----- 5. Backlight -----"
+    for b in /sys/class/backlight/*; do
+      [[ -d "$b" ]] || continue
+      echo "$(basename "$b"): brightness=$(cat "$b/brightness" 2>/dev/null)/$(cat "$b/max_brightness" 2>/dev/null)"
+    done
+    echo
+    echo "----- 6. Audio Sinks (Short) -----"
+    runuser -u steamos -- env XDG_RUNTIME_DIR=/run/user/1000 pactl list short sinks 2>/dev/null || pactl list short sinks 2>/dev/null || aplay -l 2>/dev/null || true
+    echo
+    echo "----- 7. Block Devices & Disk Space -----"
+    lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT 2>/dev/null || true
+    df -h / /var/tmp 2>/dev/null || true
+    echo
+    echo "----- 8. Network Interfaces & Wi-Fi -----"
+    ip -br addr 2>/dev/null || ip addr 2>/dev/null || true
+    echo
+    echo "----- 9. Journal Errors (Priority err and above) -----"
+    journalctl -b -p err --no-pager -n 100 2>/dev/null || true
+    echo
+    echo "----- 10. Gamescope Session Log (Tail 40 lines) -----"
+    journalctl -b -t gamescope-session -t gamescope --no-pager -n 40 2>/dev/null || true
+    echo
+    echo "----- 11. Kernel dmesg (Tail 60 lines) -----"
+    dmesg -T 2>/dev/null | tail -n 60 || true
+    echo
+    echo "==================== END OF SUMMARY ===================="
+  } >"$out_file" 2>&1
+  chmod 0644 "$out_file" 2>/dev/null || true
+}
+
+# Export full detailed log files (dmesg, journal, gamescope, audio, display)
+export_detailed_logs() {
+  local target_dir="$1"
+  mkdir -p "$target_dir"
+
+  # 1. Full dmesg
+  dmesg -T > "${target_dir}/dmesg.log" 2>&1 || true
+
+  # 2. Full journal
+  journalctl -b > "${target_dir}/journal.log" 2>&1 || true
+
+  # 3. Journal errors
+  journalctl -b -p err --no-pager > "${target_dir}/journal-errors.log" 2>&1 || true
+
+  # 4. SDDM Display Manager log
+  journalctl -b -u sddm --no-pager > "${target_dir}/sddm.log" 2>&1 || true
+
+  # 5. Full Gamescope Session log
+  {
+    echo "=== GAMESCOPE SYSTEM JOURNAL ==="
+    journalctl -b -t gamescope-session -t gamescope --no-pager 2>&1 || true
+    echo
+    echo "=== GAMESCOPE USER UNIT ==="
+    runuser -u steamos -- env XDG_RUNTIME_DIR=/run/user/1000 journalctl --user -b -u gamescope-session.service --no-pager 2>&1 || true
+    echo
+    if [[ -f /tmp/GAMESCOPE-DEBUG.txt ]]; then
+      echo "=== /tmp/GAMESCOPE-DEBUG.txt ==="
+      cat /tmp/GAMESCOPE-DEBUG.txt 2>&1 || true
+    fi
+    if [[ -f /tmp/GAMESCOPE-DEBUG.old ]]; then
+      echo "=== /tmp/GAMESCOPE-DEBUG.old ==="
+      cat /tmp/GAMESCOPE-DEBUG.old 2>&1 || true
+    fi
+    if [[ -f /tmp/START-GAMESCOPE-DEBUG.txt ]]; then
+      echo "=== /tmp/START-GAMESCOPE-DEBUG.txt ==="
+      cat /tmp/START-GAMESCOPE-DEBUG.txt 2>&1 || true
+    fi
+  } > "${target_dir}/gamescope.log" 2>&1
+
+  # 6. Detailed Audio log
+  {
+    echo "=== WIREPLUMBER / WPCTL STATUS ==="
+    runuser -u steamos -- env XDG_RUNTIME_DIR=/run/user/1000 wpctl status 2>&1 || wpctl status 2>&1 || true
+    echo
+    echo "=== PULSEAUDIO / PIPEWIRE SINKS ==="
+    runuser -u steamos -- env XDG_RUNTIME_DIR=/run/user/1000 pactl list short sinks 2>&1 || pactl list short sinks 2>&1 || true
+    echo
+    echo "=== PULSEAUDIO / PIPEWIRE SOURCES ==="
+    runuser -u steamos -- env XDG_RUNTIME_DIR=/run/user/1000 pactl list short sources 2>&1 || pactl list short sources 2>&1 || true
+    echo
+    echo "=== PULSEAUDIO CARDS ==="
+    runuser -u steamos -- env XDG_RUNTIME_DIR=/run/user/1000 pactl list cards 2>&1 || pactl list cards 2>&1 || true
+    echo
+    echo "=== ALSA HARDWARE CARDS (aplay -l) ==="
+    aplay -l 2>&1 || true
+    echo
+    if [[ -f /var/log/reverie-audio.log ]]; then
+      echo "=== /var/log/reverie-audio.log ==="
+      cat /var/log/reverie-audio.log 2>&1 || true
+    fi
+  } > "${target_dir}/audio.log" 2>&1
+
+  # 7. Hardware Audio Setup log (if available)
+  if [[ -f /var/log/sm8550-audio-setup.log ]]; then
+    cp -f /var/log/sm8550-audio-setup.log "${target_dir}/audio-setup.log" 2>/dev/null || true
+  fi
+
+  # 8. Audio routing daemon log (if available)
+  if [[ -f /var/log/sm8550-audio-pipewire.log ]]; then
+    cp -f /var/log/sm8550-audio-pipewire.log "${target_dir}/audio-pipewire.log" 2>/dev/null || true
+  elif [[ -f /tmp/sm8550-audio-pipewire.log ]]; then
+    cp -f /tmp/sm8550-audio-pipewire.log "${target_dir}/audio-pipewire.log" 2>/dev/null || true
+  fi
+
+  # 9. Detailed Display / DRM log
+  {
+    echo "=== DRM DIRECTORY ==="
+    ls -l /sys/class/drm 2>&1 || true
+    echo
+    echo "=== CONNECTORS & MODES ==="
+    for c in /sys/class/drm/card*-*; do
+      [[ -e "$c/status" ]] || continue
+      echo "--- Connector: $(basename "$c") ---"
+      echo "Status: $(cat "$c/status" 2>/dev/null)"
+      echo "Enabled: $(cat "$c/enabled" 2>/dev/null)"
+      echo "Modes:"
+      cat "$c/modes" 2>/dev/null | head -n 10 || true
+      echo
+    done
+    echo "=== BACKLIGHT STATUS ==="
+    ls -l /sys/class/backlight 2>&1 || true
+    for b in /sys/class/backlight/*; do
+      [[ -d "$b" ]] || continue
+      echo "$(basename "$b"): brightness=$(cat "$b/brightness" 2>/dev/null) / max=$(cat "$b/max_brightness" 2>/dev/null)"
+    done
+    if [[ -f /tmp/sm8550-kde-display.log ]]; then
+      echo
+      echo "=== KDE DISPLAY HOTPLUG LOG ==="
+      cat /tmp/sm8550-kde-display.log 2>&1 || true
+    fi
+  } > "${target_dir}/display.log" 2>&1
+
+  # 10. System hardware & environment info
+  {
+    echo "=== UNAME ==="
+    uname -a 2>&1 || true
+    echo
+    echo "=== OS-RELEASE ==="
+    cat /etc/os-release 2>&1 || true
+    echo
+    if [[ -f /etc/reverie/version ]]; then
+      echo "Reverie Version: $(cat /etc/reverie/version 2>/dev/null)"
+    fi
+    if [[ -f /var/lib/steamos/selected-branch ]]; then
+      echo "Update Branch:   $(cat /var/lib/steamos/selected-branch 2>/dev/null)"
+    fi
+    echo
+    echo "=== CMDLINE ==="
+    cat /proc/cmdline 2>&1 || true
+    echo
+    echo "=== FAILED SYSTEMD UNITS ==="
+    systemctl --failed --no-pager 2>&1 || true
+    echo
+    echo "=== BLOCK DEVICES ==="
+    lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINT 2>&1 || true
+    echo
+    echo "=== DISK USAGE ==="
+    df -h 2>&1 || true
+  } > "${target_dir}/system-info.txt" 2>&1
+}
+
+cmd_boot_dump() {
+  local tag="${1:-boot}"
+  local stamp
+  stamp="$(date -Iseconds 2>/dev/null || echo unknown)"
+  local local_summary="/var/log/reverie-boot-${tag}.log"
+
+  mkdir -p /var/log 2>/dev/null || true
+  if ! touch "$local_summary" 2>/dev/null; then
+    local_summary="/tmp/reverie-boot-${tag}.log"
+  fi
+
+  generate_summary_log "$tag" "$stamp" "$local_summary"
+
+  # Dump everything into the FAT32 partition inside /logs/
+  local mnt
+  if mnt=$(get_fat32_mount); then
+    local logs_dir="$mnt/logs"
+    mkdir -p "$logs_dir" 2>/dev/null || true
+
+    # Remove any stray summary file from root of FAT32 to keep root completely clean
+    rm -f "$mnt/reverie-boot-log.txt" 2>/dev/null || true
+
+    # Summary log placed strictly inside logs/
+    cp -f "$local_summary" "${logs_dir}/reverie-boot-log.txt" 2>/dev/null || true
+    cp -f "$local_summary" "${logs_dir}/boot-${tag}.txt" 2>/dev/null || true
+
+    # On late boot or manual, export full set of detailed logs
+    if [[ "$tag" == "late" || "$tag" == "manual" ]]; then
+      export_detailed_logs "$logs_dir"
+    fi
+
+    release_fat32_mount "$mnt"
+  fi
+}
+
+cmd_status() {
+  echo "=========================================="
+  echo "       Reverie OS Debug Status"
+  echo "=========================================="
+  if [[ -f "$FLAG" ]]; then
+    echo "Mode: [ ENABLED ] (Full diagnostic logging on boot)"
+  else
+    echo "Mode: [ DISABLED ] (Standard logging mode)"
+  fi
+  echo "------------------------------------------"
+  echo "Logs on FAT32 boot partition (/logs/):"
+
+  local mnt
+  if mnt=$(get_fat32_mount); then
+    local found=0
+    if [[ -d "$mnt/logs" ]]; then
+      for f in "$mnt/logs/"*; do
+        if [[ -f "$f" ]]; then
+          found=1
+          echo "  [logs/] $(basename "$f") ($(du -h "$f" 2>/dev/null | awk '{print $1}'))"
+        fi
+      done
+    fi
+    if [[ "$found" -eq 0 ]]; then
+      echo "  (No log files currently in /logs/)"
+    fi
+    release_fat32_mount "$mnt"
+  else
+    echo "  (Unable to mount FAT32 partition)"
+  fi
+  echo "=========================================="
+}
+
+cmd_enable() {
+  check_root "$@"
+  mkdir -p /etc/reverie
+  touch "$FLAG"
+  echo "==> Reverie debug mode is now [ ENABLED ]."
+  echo "    Full boot diagnostics will be saved to FAT32 /logs/ on every boot."
+}
+
+cmd_disable() {
+  check_root "$@"
+  rm -f "$FLAG"
+  echo "==> Reverie debug mode is now [ DISABLED ]."
+}
+
+cmd_clean() {
+  check_root "$@"
+  # Clean FAT32 partition logs
+  local mnt
+  if mnt=$(get_fat32_mount); then
+    rm -f "$mnt/reverie-boot-log.txt" 2>/dev/null || true
+    rm -rf "$mnt/logs"/* 2>/dev/null || true
+    # Restore README
+    cat << 'README' > "$mnt/logs/README.txt"
+Reverie OS Diagnostic Logs
+==========================
+This folder contains system boot logs, diagnostics, and hardware reports:
+- reverie-boot-log.txt : Summary overview of the latest boot
+- dmesg.log            : Full Linux kernel buffer
+- journal.log          : Full systemd journal
+- gamescope.log        : Gamescope session logs and crashes
+- audio.log            : PipeWire, WirePlumber, ALSA sinks and cards
+- audio-setup.log      : Hardware mixer initialization trace
+- display.log          : DRM connectors, modes, and backlight
+- system-info.txt      : Hardware, kernel, version, and disk layout
+
+All files are plain text and can be opened in Windows Notepad or macOS TextEdit.
+README
+    release_fat32_mount "$mnt"
+    echo "==> Cleaned log files from FAT32 /logs/."
+  fi
+  # Verify /home/steamos is completely clean of legacy debug dumps
+  rm -f /home/steamos/BOOT-DEBUG-*.txt /home/steamos/reverie-debug-*.tar.gz /home/steamos/GAMESCOPE-DEBUG.* /home/steamos/sm8550-*.log 2>/dev/null || true
+  echo "==> Verified /home/steamos is completely clean."
+}
+
+cmd_collect() {
+  check_root "$@"
+  local timestamp
+  timestamp="$(date '+%Y%m%d-%H%M%S')"
+
+  echo "==> Gathering all system logs and diagnostics..."
+
+  local mnt
+  if mnt=$(get_fat32_mount); then
+    local logs_dir="$mnt/logs"
+    mkdir -p "$logs_dir"
+
+    # Remove any stray file in root
+    rm -f "$mnt/reverie-boot-log.txt" 2>/dev/null || true
+
+    # Generate full summary and all detailed logs into logs/
+    local local_summary="/var/log/reverie-boot-manual.log"
+    mkdir -p /var/log 2>/dev/null || true
+    if ! touch "$local_summary" 2>/dev/null; then
+      local_summary="/tmp/reverie-boot-manual.log"
+    fi
+    generate_summary_log "manual" "$timestamp" "$local_summary"
+    cp -f "$local_summary" "${logs_dir}/reverie-boot-log.txt"
+
+    # Export full detailed log files
+    export_detailed_logs "$logs_dir"
+
+    # Also package everything into a compressed .tar.gz bundle
+    local archive_name="reverie-debug-${timestamp}.tar.gz"
+    local tmp_archive_dir
+    tmp_archive_dir="$(mktemp -d /tmp/reverie-archive.XXXXXX)"
+    cp -a "${logs_dir}/"* "${tmp_archive_dir}/" 2>/dev/null || true
+    tar -czf "${logs_dir}/${archive_name}" -C "$tmp_archive_dir" . 2>/dev/null || true
+    rm -rf "$tmp_archive_dir"
+
+    echo "==> Diagnostics successfully saved to FAT32 partition in /logs/:"
+    echo "    - /logs/reverie-boot-log.txt (summary overview)"
+    echo "    - /logs/dmesg.log (full kernel log)"
+    echo "    - /logs/journal.log (full system journal)"
+    echo "    - /logs/gamescope.log (gamescope session output)"
+    echo "    - /logs/audio.log (sound devices & pipewire)"
+    echo "    - /logs/display.log (DRM connectors & modes)"
+    echo "    - /logs/${archive_name} (complete compressed archive)"
+    release_fat32_mount "$mnt"
+  else
+    echo "WARNING: Could not mount FAT32 partition. Logs saved only to /var/log."
+  fi
+
+  echo "==> Log collection complete!"
+}
+
+show_help() {
+  cat <<HELP
+Reverie OS Diagnostic & Debug Management Tool
+
+Usage:
+  reverie-debug <command>
+
+Commands:
+  status               - Show current debug mode and list logs in FAT32 /logs/
+  enable               - Enable verbose debug logging on boot
+  disable              - Disable verbose debug logging
+  clean                - Remove old log files from FAT32 /logs/
+  collect              - Gather all system logs (dmesg, gamescope, audio, journal) into /logs/
+  boot-dump <early|late> - System boot diagnostic worker (called by systemd services)
+  help                 - Show this help message
+
+All logs are stored exclusively in the 'logs/' folder on the FAT32 partition (REVERIE),
+keeping the root of the flash drive clean and easy to browse on Windows/Mac.
+HELP
+}
+
+case "${1:-status}" in
+  status)
+    cmd_status
+    ;;
+  enable)
+    cmd_enable "$@"
+    ;;
+  disable)
+    cmd_disable "$@"
+    ;;
+  clean)
+    cmd_clean "$@"
+    ;;
+  collect)
+    cmd_collect "$@"
+    ;;
+  boot-dump)
+    cmd_boot_dump "${2:-boot}"
+    ;;
+  help|--help|-h)
+    show_help
+    ;;
+  *)
+    echo "Unknown command: $1"
+    show_help
+    exit 1
+    ;;
+esac

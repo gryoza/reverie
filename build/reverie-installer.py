@@ -538,6 +538,11 @@ class Installation:
                 "--exclude=home/steamos/.local/share/Steam/steamapps/shadercache/*",
                 "--exclude=home/steamos/.cache/*",
                 "--exclude=home/steamos/Downloads/*",
+                # Exclude runtime system logs and journals from internal target
+                "--exclude=/var/log/journal/*",
+                "--exclude=/var/log/*.log",
+                "--exclude=/var/log/*.txt",
+                "--exclude=/var/log/reverie*",
             ]
 
             # Exclude game directories inside steamapps/common, preserving only runtimes
