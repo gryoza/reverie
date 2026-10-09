@@ -61,7 +61,7 @@ for _i in $(seq 1 25); do
 done
 
 if [[ -f /etc/reverie/debug-enabled ]]; then
-  (sleep 4 && wpctl status > /home/steamos/BOOT-DEBUG-audio.txt 2>&1 && echo "=== SINKS ===" >> /home/steamos/BOOT-DEBUG-audio.txt && pactl list short sinks >> /home/steamos/BOOT-DEBUG-audio.txt 2>&1 && echo "=== CARDS ===" >> /home/steamos/BOOT-DEBUG-audio.txt && pactl list cards >> /home/steamos/BOOT-DEBUG-audio.txt 2>&1 && chown 1000:1000 /home/steamos/BOOT-DEBUG-audio.txt 2>/dev/null) &
+  (sleep 4 && { wpctl status; echo "=== SINKS ==="; pactl list short sinks; echo "=== CARDS ==="; pactl list cards; } > /var/log/reverie-audio.log 2>&1) &
 fi
 
 if [[ -n "${GAMESCOPE_READY_NOTIFY_SOCKET:-}" ]]; then

@@ -4,9 +4,7 @@ After=local-fs.target
 
 [Path]
 PathChanged=/etc/NetworkManager/conf.d/99-valve-wifi-backend.conf
-PathModified=/etc/NetworkManager/conf.d/99-valve-wifi-backend.conf
 PathChanged=/var/lib/overlays/etc/upper/NetworkManager/conf.d/99-valve-wifi-backend.conf
-PathModified=/var/lib/overlays/etc/upper/NetworkManager/conf.d/99-valve-wifi-backend.conf
 Unit=sm8550-wifi-backend.service
 
 [Install]

@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ -f /etc/reverie/debug-enabled ]]; then
-  [[ -f /home/steamos/GAMESCOPE-DEBUG.txt ]] && mv -f /home/steamos/GAMESCOPE-DEBUG.txt /home/steamos/GAMESCOPE-DEBUG.old 2>/dev/null
-  exec > /home/steamos/GAMESCOPE-DEBUG.txt 2>&1
+  [[ -f /tmp/GAMESCOPE-DEBUG.txt ]] && mv -f /tmp/GAMESCOPE-DEBUG.txt /tmp/GAMESCOPE-DEBUG.old 2>/dev/null
+  exec > /tmp/GAMESCOPE-DEBUG.txt 2>&1
   echo "=== gamescope-session $(date) ==="
   echo "USER=$(id -un), UID=$(id -u), XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR"
 fi
@@ -202,14 +202,39 @@ REFRESH_HZ="${GAMESCOPE_REFRESH:-60}"
 GAMESCOPE_SESSION_TARGET="${GAMESCOPE_SESSION_TARGET:-gamescope-session.target}"
 WATCH_SERVICE=""
 
-# DRM backend: Prefer external DisplayPort and HDMI connectors over internal panel
-PREFER_OUTPUT="${GAMESCOPE_OUTPUT:-DP-1,HDMI-A-1,DSI-1}"
+# DRM backend: Prefer detected connector (or user override), falling back to priority list
+PREFER_OUTPUT="${GAMESCOPE_OUTPUT:-${OUTPUT:-DP-1,HDMI-A-1,DSI-2,DSI-1}}"
+
+# Dynamic orientation: External displays are normal (landscape native).
+# Handheld panels vary by model: left, right, or normal.
+if (( IS_EXTERNAL == 1 )); then
+  ORIENTATION="normal"
+else
+  DT_MODEL=""
+  [[ -r /sys/firmware/devicetree/base/model ]] && DT_MODEL="$(tr -d '\0' < /sys/firmware/devicetree/base/model 2>/dev/null || true)"
+  case "$DT_MODEL" in
+    *"Pocket DMG"*|*"Pocket EVO"*|*"Pocket DS"*|*"Odin 2 Portal"*|*"Retroid Pocket 5"*|*"Retroid Pocket 6"*|*"Retroid Pocket Flip2"*)
+      ORIENTATION="left"
+      ;;
+    *"Retroid Pocket Nova"*)
+      ORIENTATION="normal"
+      ;;
+    *)
+      if [[ "$PANEL_H" -gt "$PANEL_W" ]]; then
+        ORIENTATION="right"
+      else
+        ORIENTATION="normal"
+      fi
+      ;;
+  esac
+fi
+ORIENTATION="${GAMESCOPE_ORIENTATION:-$ORIENTATION}"
 
 GAMESCOPE_ARGS=(
   --backend drm
   --prefer-output "$PREFER_OUTPUT"
   --force-composition-rotation
-  --force-orientation right
+  --force-orientation "$ORIENTATION"
   --force-composition
   --force-windows-fullscreen
   --scaler fit
