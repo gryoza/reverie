@@ -1,0 +1,118 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ShadowBlip/InputPlumber/main/rootfs/usr/share/inputplumber/schema/capability_map_v2.json
+# Schema version number
+version: 2
+
+# The type of configuration schema
+kind: CapabilityMap
+
+# Name for the device event map
+name: Anbernic Win600
+
+# Unique identifier of the capability mapping
+id: anb1
+
+# List of mapped events
+mapping:
+  - name: Home (Short)
+    mapping_type:
+      evdev: chord
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_ESC
+          value_type: button
+    target_event:
+      gamepad:
+        button: Guide
+
+  - name: Home (Long)
+    mapping_type:
+      evdev: chord
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_LEFTMETA
+          value_type: button
+      - evdev:
+          event_type: KEY
+          event_code: KEY_G
+          value_type: button
+    target_event:
+      gamepad:
+        button: Guide
+
+  - name: Keyboard
+    mapping_type:
+      evdev: chord
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_LEFTCTRL
+          value_type: button
+      - evdev:
+          event_type: KEY
+          event_code: KEY_LEFTMETA
+          value_type: button
+      - evdev:
+          event_type: KEY
+          event_code: KEY_O
+          value_type: button
+    target_event:
+      gamepad:
+        button: Keyboard
+
+  - name: Windows (short)
+    mapping_type:
+      evdev: chord
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_LEFTCTRL
+          value_type: button
+    target_event:
+      gamepad:
+        button: QuickAccess
+
+  - name: Windows (long)
+    mapping_type:
+      evdev: chord
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_LEFTCTRL
+          value_type: button
+      - evdev:
+          event_type: KEY
+          event_code: KEY_LEFTSHIFT
+          value_type: button
+      - evdev:
+          event_type: KEY
+          event_code: KEY_ESC
+          value_type: button
+    target_event:
+      gamepad:
+        button: QuickAccess2
+
+  - name: Home + Keyboard
+    mapping_type:
+      evdev: chord
+    source_events:
+      - evdev:
+          event_type: KEY
+          event_code: KEY_LEFTCTRL
+          value_type: button
+      - evdev:
+          event_type: KEY
+          event_code: KEY_LEFTMETA
+          value_type: button
+      - evdev:
+          event_type: KEY
+          event_code: KEY_O
+          value_type: button
+      - evdev:
+          event_type: KEY
+          event_code: KEY_G
+          value_type: button
+    target_event:
+      gamepad:
+        button: RightPaddle1 # Placeholder, no matching function exists

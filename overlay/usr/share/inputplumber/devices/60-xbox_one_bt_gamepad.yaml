@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ShadowBlip/InputPlumber/main/rootfs/usr/share/inputplumber/schema/composite_device_v1.json
+# Schema version number
+version: 1
+
+# The type of configuration schema
+kind: CompositeDevice
+
+# Name of the composite device mapping
+name: Microsoft X-Box One pad
+
+# Only use this profile if *any* of the given matches matches. If this list is
+# empty,then the source devices will *always* be checked.
+# /sys/class/dmi/id/product_name
+matches: []
+
+# Only allow a CompositeDevice to manage at most the given number of
+# source devices. When this limit is reached, a new CompositeDevice will be
+# created for any new matching devices.
+maximum_sources: 2
+
+# One or more source devices to combine into a single virtual device. The events
+# from these devices will be watched and translated according to the key map.
+source_devices:
+  - group: gamepad
+    udev:
+      attributes:
+        - name: name
+          value: Xbox Wireless Controller
+      properties:
+        - name: ID_BUS
+          value: bluetooth
+      driver: microsoft
+      sys_name: "event*"
+      subsystem: input
+    events:
+      # Block input events, but use device for output events
+      exclude:
+        - "*"
+  - group: gamepad
+    udev:
+      # NOTE: This might also capture other non-xbox microsoft devices :(
+      driver: microsoft
+      subsystem: hidraw
+
+# The target input device(s) to emulate by default
+target_devices:
+  - xbox-series
+  - mouse
+  - keyboard

@@ -28,6 +28,21 @@ matches:
       attributes:
         - name: model
           value: AYANEO Pocket EVO
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: model
+          value: AYANEO Pocket DMG
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: model
+          value: AYANEO Pocket DS
+  - udev:
+      sys_path: /sys/firmware/devicetree/base
+      attributes:
+        - name: model
+          value: AYANEO Pocket ACE
 
 single_source: false
 

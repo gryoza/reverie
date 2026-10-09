@@ -1,0 +1,12 @@
+[Unit]
+Description=InputPlumber Service
+
+[Service]
+Type=dbus
+BusName=org.shadowblip.InputPlumber
+Environment=LOG_LEVEL=info
+ExecStart=/usr/bin/inputplumber
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
