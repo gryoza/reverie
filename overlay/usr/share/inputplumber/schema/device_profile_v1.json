@@ -1,0 +1,603 @@
+{
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "$ref": "#/definitions/DeviceProfile",
+  "definitions": {
+    "DeviceProfile": {
+      "title": "DeviceProfile",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the device profile"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description of the device profile"
+        },
+        "target_devices": {
+          "description": "Target input device(s) to emulate. If unset, the target devices from the device profile will be used.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "deck",
+              "deck-uhid",
+              "ds5",
+              "ds5-edge",
+              "gamepad",
+              "hori-steam",
+              "keyboard",
+              "mouse",
+              "touchpad",
+              "touchscreen",
+              "xb360",
+              "xbox-elite",
+              "xbox-series"
+            ]
+          }
+        },
+        "mapping": {
+          "type": "array",
+          "description": "List of input mappings to translate when this profile is loaded",
+          "items": {
+            "$ref": "#/definitions/Mapping"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "mapping",
+        "name",
+        "version"
+      ]
+    },
+    "Mapping": {
+      "title": "Mapping",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source_event": {
+          "$ref": "#/definitions/Event"
+        },
+        "target_events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Event"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "source_event",
+        "target_events"
+      ]
+    },
+    "Event": {
+      "title": "Event",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "keyboard": {
+          "type": "string",
+          "enum": [
+            "KeyEsc",
+            "Key1",
+            "Key2",
+            "Key3",
+            "Key4",
+            "Key5",
+            "Key6",
+            "Key7",
+            "Key8",
+            "Key9",
+            "Key0",
+            "KeyMinus",
+            "KeyEqual",
+            "KeyBackspace",
+            "KeyTab",
+            "KeyQ",
+            "KeyW",
+            "KeyE",
+            "KeyR",
+            "KeyT",
+            "KeyY",
+            "KeyU",
+            "KeyI",
+            "KeyO",
+            "KeyP",
+            "KeyLeftBrace",
+            "KeyRightBrace",
+            "KeyEnter",
+            "KeyLeftCtrl",
+            "KeyA",
+            "KeyS",
+            "KeyD",
+            "KeyF",
+            "KeyG",
+            "KeyH",
+            "KeyJ",
+            "KeyK",
+            "KeyL",
+            "KeySemicolon",
+            "KeyApostrophe",
+            "KeyGrave",
+            "KeyLeftShift",
+            "KeyBackslash",
+            "KeyBrightnessDown",
+            "KeyBrightnessUp",
+            "KeyZ",
+            "KeyX",
+            "KeyC",
+            "KeyV",
+            "KeyB",
+            "KeyN",
+            "KeyM",
+            "KeyComma",
+            "KeyDot",
+            "KeySlash",
+            "KeyRightShift",
+            "KeyKpAsterisk",
+            "KeyLeftAlt",
+            "KeySpace",
+            "KeyCapslock",
+            "KeyF1",
+            "KeyF2",
+            "KeyF3",
+            "KeyF4",
+            "KeyF5",
+            "KeyF6",
+            "KeyF7",
+            "KeyF8",
+            "KeyF9",
+            "KeyF10",
+            "KeyNumlock",
+            "KeyScrollLock",
+            "KeyKp7",
+            "KeyKp8",
+            "KeyKp9",
+            "KeyKpMinus",
+            "KeyKp4",
+            "KeyKp5",
+            "KeyKp6",
+            "KeyKpPlus",
+            "KeyKp1",
+            "KeyKp2",
+            "KeyKp3",
+            "KeyKp0",
+            "KeyKpDot",
+            "KeyZenkakuhankaku",
+            "Key102nd",
+            "KeyF11",
+            "KeyF12",
+            "KeyRo",
+            "KeyKatakana",
+            "KeyHiragana",
+            "KeyHenkan",
+            "KeyKatakanaHiragana",
+            "KeyMuhenkan",
+            "KeyKpJpComma",
+            "KeyKpEnter",
+            "KeyRightCtrl",
+            "KeyKpSlash",
+            "KeySysrq",
+            "KeyRightAlt",
+            "KeyHome",
+            "KeyUp",
+            "KeyPageUp",
+            "KeyLeft",
+            "KeyRight",
+            "KeyEnd",
+            "KeyDown",
+            "KeyPageDown",
+            "KeyInsert",
+            "KeyDelete",
+            "KeyMute",
+            "KeyVolumeDown",
+            "KeyVolumeUp",
+            "KeyPower",
+            "KeyKpEqual",
+            "KeyPause",
+            "KeyKpComma",
+            "KeyHanja",
+            "KeyYen",
+            "KeyLeftMeta",
+            "KeyRightMeta",
+            "KeyCompose",
+            "KeyStop",
+            "KeyAgain",
+            "KeyProps",
+            "KeyUndo",
+            "KeyFront",
+            "KeyCopy",
+            "KeyOpen",
+            "KeyPaste",
+            "KeyFind",
+            "KeyCut",
+            "KeyHelp",
+            "KeyCalc",
+            "KeySleep",
+            "KeyWww",
+            "KeyBack",
+            "KeyForward",
+            "KeyEjectCD",
+            "KeyNextSong",
+            "KeyPlayPause",
+            "KeyPreviousSong",
+            "KeyStopCD",
+            "KeyRefresh",
+            "KeyEdit",
+            "KeyScrollUp",
+            "KeyScrollDown",
+            "KeyKpLeftParen",
+            "KeyKpRightParen",
+            "KeyF13",
+            "KeyF14",
+            "KeyF15",
+            "KeyF16",
+            "KeyF17",
+            "KeyF18",
+            "KeyF19",
+            "KeyF20",
+            "KeyF21",
+            "KeyF22",
+            "KeyF23",
+            "KeyF24",
+            "KeyProg1"
+          ]
+        },
+        "mouse": {
+          "$ref": "#/definitions/MouseEvent"
+        },
+        "touchpad": {
+          "$ref": "#/definitions/TouchpadEvent"
+        },
+        "touchscreen": {
+          "$ref": "#/definitions/TouchEvent"
+        },
+        "dbus": {
+          "type": "string",
+          "examples": [
+            "ui_guide",
+            "ui_quick",
+            "ui_context",
+            "ui_option",
+            "ui_select",
+            "ui_accept",
+            "ui_back",
+            "ui_action",
+            "ui_left",
+            "ui_right",
+            "ui_up",
+            "ui_down",
+            "ui_l1",
+            "ui_l2",
+            "ui_l3",
+            "ui_r1",
+            "ui_r2",
+            "ui_r3",
+            "ui_volume_up",
+            "ui_volume_down",
+            "ui_volume_mute",
+            "ui_osk",
+            "ui_screenshot",
+            "ui_touch"
+          ]
+        },
+        "gamepad": {
+          "$ref": "#/definitions/GamepadEvent"
+        }
+      },
+      "required": []
+    },
+    "MouseEvent": {
+      "title": "MouseEvent",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "motion": {
+          "$ref": "#/definitions/MouseMotionEvent"
+        },
+        "button": {
+          "type": "string",
+          "enum": [
+            "Left",
+            "Right",
+            "Middle",
+            "WheelUp",
+            "WheelDown",
+            "WheelLeft",
+            "WheelRight",
+            "Extra1",
+            "Extra2"
+          ]
+        }
+      },
+      "required": []
+    },
+    "MouseMotionEvent": {
+      "title": "MouseMotionEvent",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": [
+            "horizontal",
+            "vertical",
+            "left",
+            "right",
+            "up",
+            "down"
+          ]
+        },
+        "speed_pps": {
+          "type": "number",
+          "description": "Speed of the target motion event in pixels per second",
+          "default": 800
+        }
+      }
+    },
+    "TouchpadEvent": {
+      "title": "TouchpadEvent",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "LeftPad",
+            "RightPad",
+            "CenterPad"
+          ]
+        },
+        "touch": {
+          "$ref": "#/definitions/TouchEvent"
+        }
+      }
+    },
+    "TouchEvent": {
+      "title": "TouchEvent",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "motion": {
+          "$ref": "#/definitions/TouchMotionEvent"
+        },
+        "button": {
+          "type": "string",
+          "enum": [
+            "Touch",
+            "Press"
+          ]
+        }
+      },
+      "required": []
+    },
+    "TouchMotionEvent": {
+      "title": "TouchMotionEvent",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "region": {
+          "type": "string",
+          "description": "Map from a specific region of the touch device",
+          "enum": [
+            "left",
+            "right",
+            "top",
+            "bottom",
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-right"
+          ]
+        },
+        "speed_pps": {
+          "type": "number",
+          "description": "Speed of the target motion event in pixels per second",
+          "default": 800
+        }
+      }
+    },
+    "GamepadEvent": {
+      "title": "GamepadEvent",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "$ref": "#/definitions/AxisEvent"
+        },
+        "gyro": {
+          "$ref": "#/definitions/GyroEvent"
+        },
+        "trigger": {
+          "$ref": "#/definitions/TriggerEvent"
+        },
+        "dial": {
+          "$ref": "#/definitions/DialEvent"
+        },
+        "button": {
+          "type": "string",
+          "enum": [
+            "South",
+            "East",
+            "North",
+            "West",
+            "Start",
+            "Select",
+            "Guide",
+            "QuickAccess",
+            "QuickAccess2",
+            "Keyboard",
+            "Screenshot",
+            "DPadUp",
+            "DPadDown",
+            "DPadLeft",
+            "DPadRight",
+            "LeftBumper",
+            "LeftTop",
+            "LeftTrigger",
+            "LeftPaddle1",
+            "LeftPaddle2",
+            "LeftPaddle3",
+            "LeftStick",
+            "LeftStickTouch",
+            "LeftTouchpadTouch",
+            "LeftTouchpadPress",
+            "RightBumper",
+            "RightTop",
+            "RightTrigger",
+            "RightPaddle1",
+            "RightPaddle2",
+            "RightPaddle3",
+            "RightStick",
+            "RightStickTouch",
+            "RightTouchpadTouch",
+            "RightTouchpadPress"
+          ]
+        }
+      },
+      "required": []
+    },
+    "GyroEvent": {
+      "title": "GyroEvent",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "Gyro1",
+            "Gyro2",
+            "Gyro3"
+          ]
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "positive",
+            "negative"
+          ]
+        },
+        "deadzone": {
+          "type": "number",
+          "default": 0.3,
+          "description": "Optional deadzone from 0.0 - 1.0. When this deadzone threshold is crossed, this input is considered 'pressed'."
+        },
+        "axis": {
+          "type": "string",
+          "description": "Pitch, roll, or yaw",
+          "enum": [
+            "pitch",
+            "roll",
+            "yaw"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "TriggerEvent": {
+      "title": "TriggerEvent",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "LeftTrigger",
+            "LeftTouchpadForce",
+            "LeftStickForce",
+            "RightTrigger",
+            "RightTouchpadForce",
+            "RightStickForce"
+          ]
+        },
+        "deadzone": {
+          "type": "number",
+          "default": 0.3,
+          "description": "Optional deadzone from 0.0 - 1.0. When this deadzone threshold is crossed, this input is considered 'pressed'."
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "AxisEvent": {
+      "title": "AxisEvent",
+      "type": "object",
+      "description": "Axis events such as LeftStick, RightStick, etc.",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "LeftStick",
+            "RightStick",
+            "Hat0",
+            "Hat1",
+            "Hat2",
+            "Hat3"
+          ]
+        },
+        "direction": {
+          "type": "string",
+          "description": "Optional direction of the axis. Used when converting axis events into button events.",
+          "enum": [
+            "horizontal",
+            "vertical",
+            "left",
+            "right",
+            "up",
+            "down"
+          ]
+        },
+        "deadzone": {
+          "type": "number",
+          "default": 0.3,
+          "description": "Optional deadzone from 0.0 - 1.0. When this deadzone threshold is crossed, this input is considered 'pressed'."
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "DialEvent": {
+      "title": "DialEvent",
+      "type": "object",
+      "description": "Dial or Wheel events such as LeftStick, RightStick, etc.",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "LeftStick",
+            "RightStick"
+          ]
+        },
+        "direction": {
+          "type": "string",
+          "description": "Optional direction of the axis. Used when converting axis events into button events.",
+          "enum": [
+            "clockwise",
+            "counter-clockwise"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  }
+}

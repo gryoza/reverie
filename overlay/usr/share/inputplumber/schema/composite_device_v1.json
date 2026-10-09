@@ -1,0 +1,516 @@
+{
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "$ref": "#/definitions/CompositeDevice",
+  "definitions": {
+    "CompositeDevice": {
+      "description": "Describes the source devices to aggregate",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "description": "Schema version number",
+          "type": "integer"
+        },
+        "kind": {
+          "description": "The type of configuration schema",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of the composite device mapping",
+          "type": "string"
+        },
+        "single_source": {
+          "description": "DEPRECATED: use 'maximum_sources' instead. If true, this composite device should only use one source device. Defaults to false.",
+          "type": "boolean",
+          "default": false
+        },
+        "maximum_sources": {
+          "description": "Maximum number of source devices that this composite device can manage. When this composite device reaches this maximum and a new matching source device is detected, a new composite device will be created instead of adding the source device to the existing one. Any value less than 1 indicates no maximum. Defaults to 0 (unlimited).",
+          "type": "integer",
+          "default": 0
+        },
+        "matches": {
+          "description": "Only use this profile if *any* of the given DMI system matches match. If this list is empty, then the source devices will *always* be checked.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Match"
+          }
+        },
+        "source_devices": {
+          "description": "One or more source devices to combine into a single virtual device. The events from these devices will be watched and translated according to the event map.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SourceDevice"
+          }
+        },
+        "capability_map_id": {
+          "description": "The ID of a device event mapping in the 'capability_maps' directory",
+          "type": "string"
+        },
+        "options": {
+          "$ref": "#/definitions/Options"
+        },
+        "target_devices": {
+          "description": "Target input device(s) to emulate by default. Can be one of ['mouse', 'keyboard', 'gamepad', 'xb360', 'xbox-elite', 'xbox-series', 'deck', 'ds5', 'ds5-edge', 'touchscreen', 'touchpad', '8bitdo-u2'].",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "mouse",
+              "keyboard",
+              "gamepad",
+              "hori-steam",
+              "xb360",
+              "xbox-elite",
+              "xbox-series",
+              "deck",
+              "ds5",
+              "ds5-edge",
+              "touchpad",
+              "touchscreen"
+            ]
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "matches",
+        "name",
+        "source_devices",
+        "version"
+      ],
+      "title": "CompositeDevice"
+    },
+    "Options": {
+      "description": "Optional configuration for the composite device",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "auto_manage": {
+          "description": "If true, InputPlumber will automatically try to manage the input device. If this is false, InputPlumber will not try to manage the device unless an external service enables management of the device. Defaults to 'false'",
+          "type": "boolean",
+          "default": false
+        },
+        "persist": {
+          "description": "If true, InputPlumber will not stop the CompositeDevice if all the SourceDevices have stopped. This will persist the virtual TargetDevice to allow reconnecting a SourceDevice and resuming input. Defaults to 'false'",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "title": "Options"
+    },
+    "Match": {
+      "description": "Only use this configuration if *any* of the given items match the system. If this list is empty, then matching source devices will always create a CompositeDevice.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dmi_data": {
+          "$ref": "#/definitions/DMIMatch"
+        },
+        "udev": {
+          "$ref": "#/definitions/Udev"
+        }
+      },
+      "title": "Match"
+    },
+    "DMIMatch": {
+      "description": "Match DMI system data",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bios_release": {
+          "description": "BIOS release to match found at /sys/class/dmi/id/bios_release",
+          "type": "string"
+        },
+        "bios_vendor": {
+          "description": "BIOS vendor to match found at /sys/class/dmi/id/bios_vendor",
+          "type": "string"
+        },
+        "bios_version": {
+          "description": "BIOS version to match found at /sys/class/dmi/id/bios_version",
+          "type": "string"
+        },
+        "board_name": {
+          "description": "Board name to match found at /sys/class/dmi/id/board_name",
+          "type": "string"
+        },
+        "product_name": {
+          "description": "Product name to match found at /sys/class/dmi/id/product_name",
+          "type": "string"
+        },
+        "product_version": {
+          "description": "Product version to match found at /sys/class/dmi/id/product_version",
+          "type": "string"
+        },
+        "product_sku": {
+          "description": "Product SKU to match found at /sys/class/dmi/id/product_sku",
+          "type": "string"
+        },
+        "sys_vendor": {
+          "description": "System vendor to match found at /sys/class/dmi/id/sys_vendor",
+          "type": "string"
+        },
+        "cpu_vendor": {
+          "description": "CPU vendor to match from 'lscpu'",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "Match"
+    },
+    "SourceDevice": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "group": {
+          "description": "Custom group identifier for the source device. This is used by the event mappings to determine what source inputs should be mapped.",
+          "type": "string",
+          "enum": [
+            "keyboard",
+            "mouse",
+            "gamepad",
+            "touchscreen",
+            "imu",
+            "led"
+          ]
+        },
+        "ignore": {
+          "description": "If true, this source device will be ignored and not managed by InputPlumber. Defaults to false.",
+          "type": "boolean",
+          "default": false
+        },
+        "blocked": {
+          "description": "If true, device will be grabbed but no events from this device will reach target devices. Defaults to false.",
+          "type": "boolean",
+          "default": false
+        },
+        "passthrough": {
+          "description": "If true, events will be read from this device, but the source device will not be hidden or grabbed. Defaults to false.",
+          "type": "boolean",
+          "default": false
+        },
+        "udev": {
+          "$ref": "#/definitions/Udev"
+        },
+        "evdev": {
+          "$ref": "#/definitions/Evdev"
+        },
+        "hidraw": {
+          "$ref": "#/definitions/Hidraw"
+        },
+        "iio": {
+          "$ref": "#/definitions/IIO"
+        },
+        "led": {
+          "$ref": "#/definitions/LED"
+        },
+        "config": {
+          "$ref": "#/definitions/SourceDeviceConfig"
+        },
+        "events": {
+          "$ref": "#/definitions/EventsConfig"
+        },
+        "unique": {
+          "description": "If false, any devices matching this description will be added to the existing composite device. Defaults to true.",
+          "type": "boolean"
+        },
+        "capability_map_id": {
+          "description": "The ID of a device capability mapping in the 'capability_maps' folder",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group"
+      ],
+      "title": "SourceDevice"
+    },
+    "SourceDeviceConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "touchscreen": {
+          "$ref": "#/definitions/TouchscreenConfig"
+        },
+        "imu": {
+          "$ref": "#/definitions/ImuConfig"
+        },
+        "led": {
+          "$ref": "#/definitions/LedConfig"
+        }
+      }
+    },
+    "TouchscreenConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "orientation": {
+          "description": "Orientation of the touchscreen device. Defaults to normal.",
+          "type": "string",
+          "enum": [
+            "normal",
+            "left",
+            "right",
+            "upsidedown"
+          ]
+        },
+        "width": {
+          "description": "Width of the touchscreen in pixels. If set, any virtual touchscreens will use this width instead of querying the source device for its size.",
+          "type": "integer"
+        },
+        "height": {
+          "description": "Height of the touchscreen in pixels. If set, any virtual touchscreens will use this height instead of querying the source device for its size.",
+          "type": "integer"
+        },
+        "override_source_size": {
+          "description": "If true, the source device will use the width/height defined in this configuration instead of the size advertised by the device itself. Defaults to false.",
+          "type": "boolean"
+        }
+      }
+    },
+    "ImuConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mount_matrix": {
+          "$ref": "#/definitions/MountMatrix"
+        }
+      }
+    },
+    "LedConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fixed_color": {
+          "$ref": "#/definitions/Color"
+        }
+      }
+    },
+    "Udev": {
+      "description": "Source device to manage. Properties support globbing patterns.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attributes": {
+          "description": "Device attributes to match. Attributes can be found by running `udevadm info --attribute-walk /path/to/device` and looking at fields that look like: `ATTR{name}==\"value\"`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UdevKeyValue"
+          }
+        },
+        "dev_node": {
+          "description": "Full device node path to match. E.g. '/dev/hidraw3', '/dev/input/event*'",
+          "type": "string"
+        },
+        "dev_path": {
+          "description": "Full kernel device path to match. The path does not contain the sys mount point, but does start with a `/`. For example, the dev_path for `hidraw3` could be `/devices/pci0000:00/0000:00:08.1/.../hidraw/hidraw3`.",
+          "type": "string"
+        },
+        "driver": {
+          "description": "Driver being used by the device (or parent devices) to match. E.g. `playstation`, `microsoft`",
+          "type": "string"
+        },
+        "properties": {
+          "description": "Device properties to match. Properties can be found by running `udevadm info -q property /path/to/device`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UdevKeyValue"
+          }
+        },
+        "subsystem": {
+          "description": "Subsystem to match. E.g. `input`, `hidraw`, `iio`",
+          "type": "string"
+        },
+        "sys_name": {
+          "description": "Sysname to match. The sysname is typically the last part of the path to the device. E.g. `hidraw3`, `event6`",
+          "type": "string"
+        },
+        "sys_path": {
+          "description": "Syspath to match. The syspath is an absolute path and includes the sys mount point. For example, the syspath for `hidraw3` could be `/sys/devices/pci0000:00/0000:00:08.1/.../hidraw/hidraw3`, which includes the sys mount point `/sys`.",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "Udev"
+    },
+    "UdevKeyValue": {
+      "description": "Udev attribute or property key/value pair",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Name of the property or attribute to match. Does NOT support globbing patterns.",
+          "type": "string"
+        },
+        "value": {
+          "description": "Value of the property or attribute to match. Supports globbing patterns.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "UdevKeyValue"
+    },
+    "Evdev": {
+      "description": "Source device to manage. Properties support globbing patterns.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Name of the source device defined in /proc/bus/input/devices",
+          "type": "string"
+        },
+        "handler": {
+          "description": "Event handler for the source device in /dev/input",
+          "type": "string"
+        },
+        "phys_path": {
+          "description": "Phys path as defined in /proc/bus/input/devices",
+          "type": "string"
+        },
+        "vendor_id": {
+          "description": "ID Vendor defined in /proc/bus/input/devices",
+          "type": "string"
+        },
+        "product_id": {
+          "description": "ID Product defined in /proc/bus/input/devices",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "title": "Evdev"
+    },
+    "Hidraw": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "handler": {
+          "description": "HIDRaw handler for the source device in /dev/hidraw*",
+          "type": "string"
+        },
+        "vendor_id": {
+          "type": "integer"
+        },
+        "product_id": {
+          "type": "integer"
+        },
+        "interface_num": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "title": "Hidraw"
+    },
+    "IIO": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "IIO handler for the source device in /sys/bus/iio/devices/*",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "mount_matrix": {
+          "$ref": "#/definitions/MountMatrix"
+        }
+      },
+      "title": "IIO"
+    },
+    "LED": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Identifier of the LED device",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "title": "LED"
+    },
+    "MountMatrix": {
+      "type": "object",
+      "description": "Custom mount matrix to use to define how sensors are physically mounted",
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "description": "Matrix for x value",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "y": {
+          "description": "Matrix for y value",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        },
+        "z": {
+          "description": "Matrix for z value",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    "EventsConfig": {
+      "type": "object",
+      "description": "Defines which events are included or excluded from input processing by the source device",
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "description": "Events to exclude from being processed by a source device",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "include": {
+          "description": "Events to include and be processed by a source device",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Color": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "r": {
+          "description": "Red channel color (0-255)",
+          "type": "number"
+        },
+        "g": {
+          "description": "Green channel color (0-255)",
+          "type": "number"
+        },
+        "b": {
+          "description": "Blue channel color (0-255)",
+          "type": "number"
+        }
+      }
+    }
+  }
+}

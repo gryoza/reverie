@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ShadowBlip/InputPlumber/main/rootfs/usr/share/inputplumber/schema/composite_device_v1.json
+# Schema version number
+version: 1
+
+# The type of configuration schema
+kind: CompositeDevice
+
+# Name of the composite device mapping
+name: Sony Interactive Entertainment DualSense Wireless Controller
+
+# Maximum number of source devices per CompositeDevice.
+maximum_sources: 4
+
+# Only use this profile if *any* of the given matches matches. If this list is
+# empty then the source devices will *always* be checked.
+# /sys/class/dmi/id/product_name
+matches: []
+
+source_devices:
+  - group: gamepad
+    hidraw:
+      vendor_id: 0x054c
+      product_id: 0x0ce6
+
+  # Block the evdev implementations
+  - group: gamepad
+    blocked: true
+    evdev:
+      name: "*Wireless Controller"
+      vendor_id: 054c
+      product_id: 0ce6
+      handler: event*
+  - group: gamepad
+    blocked: true
+    evdev:
+      name: "*Wireless Controller Touchpad"
+      vendor_id: 054c
+      product_id: 0ce6
+      handler: event*
+  - group: gamepad
+    blocked: true
+    evdev:
+      name: "*Wireless Controller Motion Sensors"
+      vendor_id: 054c
+      product_id: 0ce6
+      handler: event*
+
+# The target input device(s) to emulate by default
+target_devices:
+  - ds5
+  - mouse
+  - keyboard
