@@ -11,9 +11,12 @@
 *.sha256
 *.bak
 *.BAK
+boot/KERNEL
+KERNEL
 
 # Build and temporary files
 build_output/
+/bin/
 *.tmp
 .tmp*
 .image-mnt/

@@ -1,8 +1,8 @@
 NAME="Reverie OS"
-PRETTY_NAME="Reverie OS 1.0 (Holo)"
+PRETTY_NAME="Reverie OS 1.1 (Holo)"
 ID=steamos
 ID_LIKE=arch
-BUILD_ID="1.0.0"
+BUILD_ID="1.1.0"
 VARIANT_ID="steamdeck"
 VARIANT="Handheld Edition"
 VERSION_CODENAME=holo

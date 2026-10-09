@@ -1,0 +1,1 @@
+# Mounts of `/var` and `/etc` are handled by the initrd

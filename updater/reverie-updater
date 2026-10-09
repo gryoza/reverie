@@ -63,11 +63,26 @@ def load_config() -> dict:
                             cfg[k] = v
         except Exception as e:
             log(f"Warning reading config: {e}")
+
+    # Read Steam Game Mode selected branch if present
+    branch_file = "/var/lib/steamos/selected-branch"
+    if os.path.exists(branch_file):
+        try:
+            b = Path(branch_file).read_text(encoding="utf-8").strip().lower()
+            if b in ("beta", "bc"):
+                cfg["CHANNEL"] = "beta"
+            elif b in ("preview", "pc", "main", "staging"):
+                cfg["CHANNEL"] = "preview"
+            elif b in ("rel", "stable"):
+                cfg["CHANNEL"] = "stable"
+        except Exception as e:
+            log(f"Warning reading branch: {e}")
+
     return cfg
 
 
 def get_current_version() -> str:
-    # 1. Custom version file if available
+    # Custom version file if available
     if os.path.exists(VERSION_FILE):
         try:
             v = Path(VERSION_FILE).read_text(encoding="utf-8").strip()
@@ -76,7 +91,7 @@ def get_current_version() -> str:
         except Exception:
             pass
 
-    # 2. Check /etc/os-release
+    # Check /etc/os-release
     build_id = ""
     version_id = ""
     if os.path.exists(OS_RELEASE):
@@ -117,12 +132,9 @@ def is_newer(remote: str, local: str) -> bool:
 
 
 def query_github_release(repo: str, channel: str = "stable") -> dict:
-    url = f"https://api.github.com/repos/{repo}/releases/latest"
-    if channel != "stable":
-        url = f"https://api.github.com/repos/{repo}/releases"
-
+    channel = channel.lower().strip()
     req = urllib.request.Request(
-        url,
+        f"https://api.github.com/repos/{repo}/releases",
         headers={
             "User-Agent": "Reverie-Updater/1.0",
             "Accept": "application/vnd.github.v3+json"
@@ -130,12 +142,27 @@ def query_github_release(repo: str, channel: str = "stable") -> dict:
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode("utf-8"))
-            if isinstance(data, list):
-                if not data:
-                    return {}
-                return data[0]
-            return data
+            releases = json.loads(response.read().decode("utf-8"))
+            if not isinstance(releases, list):
+                return {}
+
+            for rel in releases:
+                tag = rel.get("tag_name", "").lower()
+                is_prerelease = rel.get("prerelease", False)
+
+                if channel == "stable":
+                    # Strictly stable: not a pre-release, no beta/preview/alpha/rc in tag
+                    if not is_prerelease and not any(k in tag for k in ("beta", "preview", "alpha", "rc")):
+                        return rel
+                elif channel == "beta":
+                    # Stable or Beta (exclude preview/alpha/nightly)
+                    if not any(k in tag for k in ("preview", "alpha", "nightly")):
+                        return rel
+                elif channel in ("preview", "main"):
+                    # Any release (bleeding edge, preview, alpha, beta, stable)
+                    return rel
+
+            return {}
     except urllib.error.HTTPError as e:
         log(f"GitHub API HTTP error {e.code}: {e.reason}")
         return {}
@@ -281,13 +308,13 @@ def cmd_apply(cfg: dict, local_tar: str = None) -> int:
             log("No .tar.zst asset found in latest release.")
             return 7
 
-        # 1. Download asset (0% -> 60%)
+        # Download asset (0% -> 60%)
         emit_progress(5)
         log(f"Downloading {tar_asset['name']} ({tar_asset.get('size', 0)} bytes)...")
         if not download_file(tar_asset["browser_download_url"], tar_path, 5, 60):
             return 7
 
-        # 2. Verify Checksum (60% -> 65%)
+        # Verify Checksum (60% -> 65%)
         emit_progress(60)
         if sha_asset:
             sha_file = work_dir / "sha256sums.txt"
@@ -306,7 +333,7 @@ def cmd_apply(cfg: dict, local_tar: str = None) -> int:
                     log("Checksum verified.")
         emit_progress(65)
 
-    # 3. Create Btrfs Safety Snapshot (65% -> 70%)
+    # Create Btrfs Safety Snapshot (65% -> 70%)
     if cfg["BTRFS_BACKUP"] and os.path.exists(SNAPSHOT_SCRIPT):
         emit_progress(67)
         try:
@@ -315,7 +342,7 @@ def cmd_apply(cfg: dict, local_tar: str = None) -> int:
             log(f"Snapshot warning: {e}")
     emit_progress(70)
 
-    # 4. Extract update files to / (70% -> 88%)
+    # Extract update files to / (70% -> 88%)
     log("Extracting update package to rootfs...")
     extract_temp = Path(tempfile.mkdtemp(prefix="reverie-unpack-"))
     try:
@@ -353,13 +380,13 @@ def cmd_apply(cfg: dict, local_tar: str = None) -> int:
         subprocess.run(cmd, shell=True)
         emit_progress(94)
 
-        # 5. Run post-install.sh if present
+        # Run post-install.sh if present
         if has_post:
             log("Executing post-install script...")
             subprocess.run([str(post_script)], check=False)
         emit_progress(97)
 
-        # 6. Update version information
+        # Update version information
         log(f"Updating system version to {new_version}...")
         Path(VERSION_FILE).parent.mkdir(parents=True, exist_ok=True)
         Path(VERSION_FILE).write_text(new_version.lstrip("vV") + "\n", encoding="utf-8")
@@ -390,32 +417,43 @@ def cmd_apply(cfg: dict, local_tar: str = None) -> int:
 
 
 def main():
-    args = sys.argv[1:]
+    raw_args = sys.argv[1:]
+    args = [
+        a for a in raw_args
+        if not a.startswith("--enable-duplicate-detection")
+        and not a.startswith("--supports-duplicate-detection")
+    ]
 
     # Only elevate to root if applying updates
-    if args and args[0] in ("version", "--version"):
+    if any(a in ("version", "--version") for a in args):
         print(get_current_version())
         sys.exit(0)
 
-    if args and args[0] in ("-h", "--help", "help"):
+    if any(a in ("-h", "--help", "help") for a in args):
         print("Usage: reverie-updater [check|apply|version|test-update <tar>]")
         sys.exit(0)
 
     cfg = load_config()
 
-    if args and args[0] in ("check", "--check"):
+    if any(a in ("check", "--check") for a in args):
         sys.exit(cmd_check(cfg))
 
     if os.geteuid() != 0:
         log("Elevating privileges to root...")
         os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
 
-    if not args or args[0] in ("apply", "update", "--apply"):
+    if not args or any(a in ("apply", "update", "--apply") for a in args):
         sys.exit(cmd_apply(cfg))
-    elif args[0] == "test-update" and len(args) > 1:
-        sys.exit(cmd_apply(cfg, local_tar=args[1]))
+    elif "test-update" in args:
+        idx = args.index("test-update")
+        tar_file = args[idx + 1] if idx + 1 < len(args) else ""
+        if tar_file:
+            sys.exit(cmd_apply(cfg, local_tar=tar_file))
+        else:
+            log("Missing tar path for test-update")
+            sys.exit(7)
     else:
-        log(f"Unknown argument: {args[0]}")
+        log(f"Unknown argument: {args[0] if args else ''}")
         sys.exit(7)
 
 
