@@ -11,7 +11,7 @@ case "${1:-}" in
 esac
 
 if [[ -f /etc/reverie/debug-enabled ]]; then
-  LOGFILE="/home/steamos/sm8550-audio-pipewire.log"
+  LOGFILE="/tmp/sm8550-audio-pipewire.log"
 else
   LOGFILE="/dev/null"
 fi
@@ -189,6 +189,7 @@ fi
 
 last=off
 drm_dp && last=on
+last_restart=0
 log "watch last_dp=${last}"
 while true; do
   sleep 2
@@ -200,8 +201,8 @@ while true; do
 
     # Dynamic Game Mode display hotplug handling:
     if pgrep -x gamescope >/dev/null 2>&1; then
-      # Give Gamescope 2s to switch natively on DRM hotplug
-      sleep 2
+      # Give Gamescope up to 4s to negotiate DRM link natively
+      sleep 4
       dp_active=0
       for ef in /sys/class/drm/card*-DP-*/enabled /sys/class/drm/card*-HDMI-*/enabled; do
         if [[ -r "$ef" ]] && [[ "$(tr -d '[:space:]' <"$ef")" == "enabled" ]]; then
@@ -209,20 +210,21 @@ while true; do
           break
         fi
       done
+      now=$(date +%s)
       if { [[ "$cur" == "on" ]] && (( dp_active == 0 )); } || { [[ "$cur" == "off" ]] && (( dp_active == 1 )); }; then
-        log "Gamescope display hotplug fallback: restarting gamescope-session (cur=${cur} dp_active=${dp_active})..."
-        systemctl --user restart gamescope-session.service 2>/dev/null || true
+        if (( now - last_restart > 15 )); then
+          last_restart=$now
+          log "Gamescope display hotplug fallback: restarting gamescope-session (cur=${cur} dp_active=${dp_active})..."
+          systemctl --user restart gamescope-session.service 2>/dev/null || true
+        else
+          log "Gamescope restart cooldown active (skipping rapid restart)"
+        fi
       else
         log "Gamescope display hotplug handled natively (cur=${cur} dp_active=${dp_active})"
       fi
     elif pgrep -x kwin_wayland >/dev/null 2>&1; then
-      if [[ "$cur" == "on" ]]; then
-        log "KDE display hotplug: enabling external display DP-1..."
-        (/usr/lib/steamos/sm8550-kde-display-hotplug) &
-      else
-        log "KDE display hotplug: DP disconnected, restoring internal display DSI-1..."
-        (sleep 1; kscreen-doctor output.DSI-1.enable output.DSI-1.primary >/dev/null 2>&1 || true) &
-      fi
+      log "KDE display hotplug: triggering display update (cur=${cur})..."
+      (export XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-0; /usr/lib/steamos/sm8550-kde-display-hotplug) &
     fi
 
     last="$cur"
