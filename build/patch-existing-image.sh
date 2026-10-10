@@ -218,7 +218,11 @@ rm -f "${MNT_DIR}/home/steamos/.local/state/dolphinstaterc" \
       "${MNT_DIR}/home/steamos/.local/state/systemsettingsstaterc" \
       "${MNT_DIR}/home/steamos/.local/share/baloo/index-lock" \
       "${MNT_DIR}/home/steamos/.local/share/user-places.xbel.bak" \
-      "${MNT_DIR}/home/steamos/.local/share/user-places.xbel.tbcache"
+      "${MNT_DIR}/home/steamos/.local/share/user-places.xbel.tbcache" \
+      "${MNT_DIR}/etc/xdg/plasma-workspace/env/set-return-icon.sh" \
+      "${MNT_DIR}/home/steamos/.cache/ksycoca"* \
+      "${MNT_DIR}/home/steamos/.cache/icon-cache"* 2>/dev/null || true
+rm -rf "${MNT_DIR}/home/steamos/.local/share/icons/hicolor" 2>/dev/null || true
 
 # 8.6. Remove legacy project names, obsolete scripts, and legacy debuggers
 rm -rf "${MNT_DIR}/home/steamos/homebrew/data/Mononoke-Power" \
@@ -287,6 +291,8 @@ chmod 0755 "${MNT_DIR}/usr/lib/reverie/"* 2>/dev/null || true
 chmod 0755 "${MNT_DIR}/usr/lib/steamos/"* 2>/dev/null || true
 chmod 0755 "${MNT_DIR}/usr/local/bin/"* 2>/dev/null || true
 chmod 0755 "${MNT_DIR}/home/steamos/Desktop/"*.desktop 2>/dev/null || true
+chmod -R 0755 "${MNT_DIR}/usr/share/icons" "${MNT_DIR}/usr/share/applications" 2>/dev/null || true
+chown -R 0:0 "${MNT_DIR}/usr/share/icons" "${MNT_DIR}/usr/share/applications" 2>/dev/null || true
 chown -R 1000:1000 "${MNT_DIR}/home/steamos" 2>/dev/null || true
 mkdir -p "${MNT_DIR}/var/lib/steamos"
 echo "rel" > "${MNT_DIR}/var/lib/steamos/selected-branch"

@@ -401,8 +401,9 @@ chmod 0755 "${MNT_ROOTFS}/usr/lib/reverie/"* 2>/dev/null || true
 chmod 0755 "${MNT_ROOTFS}/usr/lib/steamos/"* 2>/dev/null || true
 chmod 0755 "${MNT_ROOTFS}/usr/local/bin/"* 2>/dev/null || true
 chmod 0755 "${MNT_ROOTFS}/usr/bin/"* 2>/dev/null || true
-chmod 0755 "${MNT_ROOTFS}/etc/xdg/plasma-workspace/env/"*.sh 2>/dev/null || true
 chmod 0755 "${MNT_ROOTFS}/home/steamos/Desktop/"*.desktop 2>/dev/null || true
+chmod -R 0755 "${MNT_ROOTFS}/usr/share/icons" "${MNT_ROOTFS}/usr/share/applications" 2>/dev/null || true
+chown -R 0:0 "${MNT_ROOTFS}/usr/share/icons" "${MNT_ROOTFS}/usr/share/applications" 2>/dev/null || true
 chown -R 1000:1000 "${MNT_ROOTFS}/home/steamos" 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
@@ -532,7 +533,11 @@ rm -f "${MNT_ROOTFS}/home/steamos/.local/state/dolphinstaterc" \
       "${MNT_ROOTFS}/home/steamos/.local/state/systemsettingsstaterc" \
       "${MNT_ROOTFS}/home/steamos/.local/share/baloo/index-lock" \
       "${MNT_ROOTFS}/home/steamos/.local/share/user-places.xbel.bak" \
-      "${MNT_ROOTFS}/home/steamos/.local/share/user-places.xbel.tbcache" 2>/dev/null || true
+      "${MNT_ROOTFS}/home/steamos/.local/share/user-places.xbel.tbcache" \
+      "${MNT_ROOTFS}/etc/xdg/plasma-workspace/env/set-return-icon.sh" \
+      "${MNT_ROOTFS}/home/steamos/.cache/ksycoca"* \
+      "${MNT_ROOTFS}/home/steamos/.cache/icon-cache"* 2>/dev/null || true
+rm -rf "${MNT_ROOTFS}/home/steamos/.local/share/icons/hicolor" 2>/dev/null || true
 
 # Remove obsolete/legacy scripts and debug logs
 rm -rf "${MNT_ROOTFS}/usr/lib/steamos/sm8550-boot-debug" \
