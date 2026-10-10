@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Reverie OS - Restore Steam Game Icons
+Restores missing game icons from Steam appcache or Steam CDN into ~/.local/share/icons/
+Also ensures standard desktop and hicolor icon caches are kept in sync.
+"""
+import os
+import re
+import sys
+import shutil
+import urllib.request
+from pathlib import Path
+
+def main():
+    home = Path("/home/steamos")
+    if not home.exists():
+        return
+
+    icons_dir = home / ".local/share/icons"
+    hicolor = icons_dir / "hicolor"
+    hicolor.mkdir(parents=True, exist_ok=True)
+
+    # Ensure index.theme is linked so KDE/Qt loads the hicolor theme properly
+    theme_link = hicolor / "index.theme"
+    if not theme_link.exists() or theme_link.is_symlink():
+        sys_theme = Path("/usr/share/icons/hicolor/index.theme")
+        if sys_theme.exists():
+            try:
+                if theme_link.is_symlink() or theme_link.exists():
+                    theme_link.unlink()
+                theme_link.symlink_to(sys_theme)
+            except OSError:
+                shutil.copy2(sys_theme, theme_link)
+
+    sizes = ["32x32", "48x48", "64x64", "128x128", "256x256"]
+    for sz in sizes:
+        (hicolor / sz / "apps").mkdir(parents=True, exist_ok=True)
+
+    # Find Steam desktop shortcuts and application entries
+    desktop_dirs = [
+        home / "Desktop",
+        home / ".local/share/applications",
+    ]
+    desktop_files = []
+    for d in desktop_dirs:
+        if d.is_dir():
+            desktop_files.extend(d.glob("*.desktop"))
+
+    steam_roots = [
+        home / ".local/share/Steam",
+        home / ".steam/steam",
+        home / ".steam/root",
+    ]
+
+    for df in desktop_files:
+        try:
+            content = df.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+
+        m = re.search(r"steam://rungameid/(\d+)", content)
+        if not m:
+            m = re.search(r"steam_icon_(\d+)", content)
+        if not m:
+            continue
+        appid = m.group(1)
+        icon_name = f"steam_icon_{appid}"
+
+        # Target destinations across all standard resolutions + base icons dir
+        targets = [
+            icons_dir / f"{icon_name}.png",
+            icons_dir / f"{icon_name}.jpg",
+            hicolor / "32x32" / "apps" / f"{icon_name}.png",
+            hicolor / "48x48" / "apps" / f"{icon_name}.png",
+            hicolor / "64x64" / "apps" / f"{icon_name}.png",
+            hicolor / "128x128" / "apps" / f"{icon_name}.png",
+            hicolor / "256x256" / "apps" / f"{icon_name}.png",
+        ]
+
+        # Check if already present and non-empty
+        if any(t.is_file() and t.stat().st_size > 0 for t in targets):
+            continue
+
+        # Look in Steam appcache/librarycache or steam/games
+        found_data = None
+        for sroot in steam_roots:
+            libcache = sroot / "appcache" / "librarycache"
+            if libcache.is_dir():
+                candidates = [
+                    libcache / appid / "icon.jpg",
+                    libcache / appid / "icon.png",
+                    libcache / f"{appid}_icon.jpg",
+                    libcache / f"{appid}_icon.png",
+                    libcache / f"{appid}_logo.png",
+                    libcache / f"{appid}_header.jpg",
+                ]
+                for cand in candidates:
+                    if cand.is_file() and cand.stat().st_size > 0:
+                        try:
+                            found_data = cand.read_bytes()
+                            break
+                        except OSError:
+                            pass
+                if found_data:
+                    break
+
+            games_ico = sroot / "steam" / "games"
+            if games_ico.is_dir():
+                for ico in games_ico.glob("*.ico"):
+                    if ico.stat().st_size > 0:
+                        pass
+
+        # If not found locally, try downloading thumbnail from Steam CDN
+        if not found_data:
+            urls = [
+                f"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{appid}/logo.png",
+                f"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{appid}/capsule_sm_120.jpg",
+                f"https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/capsule_sm_120.jpg",
+                f"https://cdn.cloudflare.steamstatic.com/steam/apps/{appid}/header.jpg",
+                f"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/{appid}/header.jpg",
+            ]
+            for url in urls:
+                try:
+                    req = urllib.request.Request(url, headers={"User-Agent": "Valve/Steam"})
+                    with urllib.request.urlopen(req, timeout=3) as resp:
+                        data = resp.read()
+                        if len(data) > 500:
+                            found_data = data
+                            break
+                except (urllib.error.URLError, TimeoutError, OSError):
+                    pass
+
+        if found_data:
+            tmp_img = icons_dir / f"tmp_{appid}.img"
+            png_bytes = found_data
+            try:
+                tmp_img.write_bytes(found_data)
+                if shutil.which("ffmpeg"):
+                    tmp_png = icons_dir / f"tmp_{appid}.png"
+                    os.system(f"ffmpeg -loglevel quiet -y -i '{tmp_img}' '{tmp_png}' 2>/dev/null")
+                    if tmp_png.is_file() and tmp_png.stat().st_size > 0:
+                        png_bytes = tmp_png.read_bytes()
+                        tmp_png.unlink(missing_ok=True)
+                tmp_img.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+            for t in targets:
+                try:
+                    t.parent.mkdir(parents=True, exist_ok=True)
+                    t.write_bytes(png_bytes)
+                except Exception:
+                    pass
+
+    # Ensure steamos owns ~/.local/share/icons
+    os.system("chown -R 1000:1000 /home/steamos/.local/share/icons 2>/dev/null || true")
+    os.system("gtk-update-icon-cache -q -f -t /home/steamos/.local/share/icons/hicolor 2>/dev/null || true")
+
+if __name__ == "__main__":
+    main()

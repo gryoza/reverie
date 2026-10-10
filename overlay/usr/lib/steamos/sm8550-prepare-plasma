@@ -18,6 +18,8 @@ export XDG_SESSION_TYPE=wayland
 export XDG_CURRENT_DESKTOP=KDE
 export XDG_SESSION_DESKTOP=KDE
 export DESKTOP_SESSION=plasma
+export XDG_MENU_PREFIX=plasma-
+export XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
 if command -v systemctl >/dev/null 2>&1; then
   systemctl --user unset-environment \
@@ -28,11 +30,13 @@ if command -v systemctl >/dev/null 2>&1; then
     XDG_SESSION_TYPE=wayland \
     XDG_CURRENT_DESKTOP=KDE \
     XDG_SESSION_DESKTOP=KDE \
-    DESKTOP_SESSION=plasma || true
+    DESKTOP_SESSION=plasma \
+    XDG_MENU_PREFIX=plasma- \
+    XDG_DATA_DIRS="${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" || true
 fi
 
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
   dbus-update-activation-environment --systemd \
     QT_QPA_PLATFORM XDG_SESSION_TYPE XDG_CURRENT_DESKTOP \
-    XDG_SESSION_DESKTOP DESKTOP_SESSION >/dev/null 2>&1 || true
+    XDG_SESSION_DESKTOP DESKTOP_SESSION XDG_MENU_PREFIX XDG_DATA_DIRS >/dev/null 2>&1 || true
 fi

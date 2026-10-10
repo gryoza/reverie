@@ -29,6 +29,8 @@ echo "=== Packaging Reverie OS OTA Update v${VERSION_CLEAN} ==="
 if [ -d "${REPO_DIR}/overlay" ]; then
     echo "Adding overlay system files..."
     cp -a "${REPO_DIR}/overlay/"* "${TEMP_DIR}/"
+    # OTA update must NEVER add installer shortcut to Desktop
+    rm -f "${TEMP_DIR}/home/steamos/Desktop/reverie-installer.desktop"
 fi
 
 # Add kernel modules and firmware
@@ -122,6 +124,39 @@ ln -sfn /usr/lib/systemd/system/inputplumber.service /etc/systemd/system/multi-u
 # Ensure pacman compatibility symlink
 mkdir -p /var/lib
 ln -sfn /usr/lib/holo/pacmandb /var/lib/pacman 2>/dev/null || true
+
+# 7. Clean up deprecated plasma env scripts and broken local icon shadows
+rm -f /etc/xdg/plasma-workspace/env/set-return-icon.sh 2>/dev/null || true
+if [ -d /home/steamos/.local/share/icons/hicolor ] && [ ! -f /home/steamos/.local/share/icons/hicolor/index.theme ]; then
+    rm -rf /home/steamos/.local/share/icons/hicolor 2>/dev/null || true
+fi
+
+# 8. Rebuild desktop application database and icon caches
+chmod 0755 /home/steamos/Desktop/*.desktop 2>/dev/null || true
+chown -R steamos:steamos /home/steamos/Desktop 2>/dev/null || true
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database /usr/share/applications 2>/dev/null || true
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
+fi
+rm -f /home/steamos/.cache/ksycoca* /home/steamos/.cache/icon-cache* 2>/dev/null || true
+if command -v kbuildsycoca6 >/dev/null 2>&1; then
+    runuser -u steamos -- env XDG_MENU_PREFIX=plasma- kbuildsycoca6 --noincremental 2>/dev/null || true
+elif command -v kbuildsycoca5 >/dev/null 2>&1; then
+    runuser -u steamos -- env XDG_MENU_PREFIX=plasma- kbuildsycoca5 --noincremental 2>/dev/null || true
+fi
+
+# 9. Remove installer desktop shortcuts if running from internal storage
+ROOT_DEV="$(findmnt -no SOURCE / 2>/dev/null || true)"
+if [[ -n "$ROOT_DEV" && "$ROOT_DEV" != /dev/mmcblk* && "$ROOT_DEV" != /dev/loop* ]]; then
+    rm -f /home/steamos/Desktop/reverie-installer.desktop \
+          /home/steamos/.local/share/applications/reverie-installer.desktop \
+          /usr/share/applications/reverie-installer.desktop 2>/dev/null || true
+fi
+
+# Clean up temporary post-install script from rootfs
+rm -f /post-install.sh 2>/dev/null || true
 
 systemctl daemon-reload 2>/dev/null || true
 echo "[Reverie-Update] Post-install migration finished successfully."
