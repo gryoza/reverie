@@ -1,0 +1,17 @@
+{
+	"file_format_version" : "1.0.0",
+	"layer" : {
+		"name": "VK_LAYER_VALVE_steam_fossilize_64",
+		"type": "GLOBAL",
+		"library_path": "/home/steamos/.local/share/Steam/ubuntu12_64/libVkLayer_steam_fossilize.so",
+		"api_version": "1.3.207",
+		"implementation_version": "1",
+		"description": "Steam Pipeline Caching Layer",
+		"disable_environment": { "DISABLE_VK_LAYER_VALVE_steam_fossilize_1": "1" },
+		"enable_environment": { "ENABLE_VK_LAYER_VALVE_steam_fossilize_1": "1" },
+		"functions": {
+			"vkGetInstanceProcAddr": "VK_LAYER_fossilize_GetInstanceProcAddr",
+			"vkGetDeviceProcAddr": "VK_LAYER_fossilize_GetDeviceProcAddr"
+		}
+	}
+}

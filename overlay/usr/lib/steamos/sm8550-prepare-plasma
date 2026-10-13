@@ -40,3 +40,94 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     QT_QPA_PLATFORM XDG_SESSION_TYPE XDG_CURRENT_DESKTOP \
     XDG_SESSION_DESKTOP DESKTOP_SESSION XDG_MENU_PREFIX XDG_DATA_DIRS >/dev/null 2>&1 || true
 fi
+
+# Initialize KDE user config, icons, and sycoca database
+USER_HOME="${HOME:-/home/steamos}"
+
+if [[ -d "$USER_HOME" ]]; then
+  # 1. Ensure KDE desktop profile and kdedefaults exist from /etc/skel
+  mkdir -p "${USER_HOME}/.config" "${USER_HOME}/.local/share"
+  if [[ ! -f "${USER_HOME}/.config/plasma-org.kde.plasma.desktop-appletsrc" ]]; then
+    if [[ -d /etc/skel/.config ]]; then
+      cp -a /etc/skel/.config/* "${USER_HOME}/.config/" 2>/dev/null || true
+    fi
+  fi
+  if [[ ! -d "${USER_HOME}/.config/kdedefaults" ]]; then
+    mkdir -p "${USER_HOME}/.config/kdedefaults"
+    if [[ -d /etc/skel/.config/kdedefaults ]]; then
+      cp -a /etc/skel/.config/kdedefaults/* "${USER_HOME}/.config/kdedefaults/" 2>/dev/null || true
+    fi
+  fi
+  if [[ ! -f "${USER_HOME}/.local/share/user-places.xbel" ]]; then
+    if [[ -d /etc/skel/.local/share ]]; then
+      cp -a /etc/skel/.local/share/* "${USER_HOME}/.local/share/" 2>/dev/null || true
+    fi
+  fi
+
+  # Ensure kdeglobals exists with breeze-dark icon theme
+  if [[ ! -f "${USER_HOME}/.config/kdeglobals" ]]; then
+    if [[ -f /etc/skel/.config/kdeglobals ]]; then
+      cp -f /etc/skel/.config/kdeglobals "${USER_HOME}/.config/kdeglobals"
+    else
+      cat << 'EOF' > "${USER_HOME}/.config/kdeglobals"
+[KDE]
+LookAndFeelPackage=com.valve.vapor.desktop
+
+[Icons]
+Theme=breeze-dark
+
+[General]
+ColorScheme=Vapor
+EOF
+    fi
+  elif ! grep -q "Theme=" "${USER_HOME}/.config/kdeglobals" 2>/dev/null; then
+    if grep -q "\[Icons\]" "${USER_HOME}/.config/kdeglobals" 2>/dev/null; then
+      sed -i '/\[Icons\]/a Theme=breeze-dark' "${USER_HOME}/.config/kdeglobals" 2>/dev/null || true
+    else
+      cat << 'EOF' >> "${USER_HOME}/.config/kdeglobals"
+
+[Icons]
+Theme=breeze-dark
+EOF
+    fi
+  fi
+
+  # 2. Ensure hicolor theme link exists
+  mkdir -p "${USER_HOME}/.local/share/icons/hicolor"
+  if [[ ! -e "${USER_HOME}/.local/share/icons/hicolor/index.theme" ]]; then
+    ln -sfn /usr/share/icons/hicolor/index.theme "${USER_HOME}/.local/share/icons/hicolor/index.theme" 2>/dev/null || true
+  fi
+
+  # 3. Ensure desktop shortcuts are executable so Plasma displays icons and launches them
+  chmod 0755 "${USER_HOME}/Desktop/"*.desktop 2>/dev/null || true
+
+  # 4. Remove installer shortcuts if running from internal SSD / NVMe
+  ROOT_DEV="$(findmnt -no SOURCE / 2>/dev/null || true)"
+  if [[ -n "$ROOT_DEV" && "$ROOT_DEV" != /dev/mmcblk* && "$ROOT_DEV" != /dev/loop* ]]; then
+    rm -f "${USER_HOME}/Desktop/reverie-installer.desktop" \
+          "${USER_HOME}/.local/share/applications/reverie-installer.desktop" \
+          /usr/share/applications/reverie-installer.desktop 2>/dev/null || true
+  fi
+
+  # 5. Restore Steam game icons in background
+  if [[ -x /usr/lib/reverie/reverie-restore-game-icons ]]; then
+    /usr/lib/reverie/reverie-restore-game-icons >/dev/null 2>&1 &
+  fi
+
+  # 6. Rebuild desktop sycoca cache if missing (e.g. fresh installation or wiped cache)
+  if ! compgen -G "${USER_HOME}/.cache/ksycoca6*" >/dev/null; then
+    if command -v update-desktop-database >/dev/null 2>&1; then
+      update-desktop-database /usr/share/applications "${USER_HOME}/.local/share/applications" 2>/dev/null || true
+    fi
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+      gtk-update-icon-cache -q -f -t /usr/share/icons/hicolor 2>/dev/null || true
+      gtk-update-icon-cache -q -f -t "${USER_HOME}/.local/share/icons/hicolor" 2>/dev/null || true
+    fi
+    if command -v kbuildsycoca6 >/dev/null 2>&1; then
+      env XDG_MENU_PREFIX=plasma- kbuildsycoca6 --noincremental >/dev/null 2>&1 || true
+    elif command -v kbuildsycoca5 >/dev/null 2>&1; then
+      env XDG_MENU_PREFIX=plasma- kbuildsycoca5 --noincremental >/dev/null 2>&1 || true
+    fi
+  fi
+fi
+

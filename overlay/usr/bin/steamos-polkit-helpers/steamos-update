@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 # No pkexec: Game Mode has no polkit agent and pkexec/atomupd → exit 127.
 set -uo pipefail
+mkdir -p /var/log 2>/dev/null || true
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] steamos-polkit-helpers/steamos-update called with: $* (uid: $(id -u))" >> /var/log/reverie-update.log 2>/dev/null || true
 exec /usr/bin/steamos-update "$@"

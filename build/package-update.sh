@@ -94,6 +94,13 @@ chmod 0775 /var/lib/steamos 2>/dev/null || true
 chmod 0755 /usr/bin/reverie-updater /usr/bin/steamos-update /usr/bin/reverie-debug /usr/bin/inputplumber 2>/dev/null || true
 chmod 0755 /usr/lib/reverie/* /usr/lib/steamos/* 2>/dev/null || true
 
+# Sudoers configuration for wheel
+mkdir -p /etc/sudoers.d
+echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel
+chown -R root:root /etc/sudoers /etc/sudoers.d 2>/dev/null || true
+chmod 0440 /etc/sudoers.d/* 2>/dev/null || true
+chmod 0750 /etc/sudoers.d 2>/dev/null || true
+
 # Fix libserialport symlink & remove obsolete build
 rm -f /usr/lib/libserialport.so.0.1.1 2>/dev/null || true
 if [ -f /usr/lib/libserialport.so.0.1.0 ]; then
@@ -125,13 +132,13 @@ ln -sfn /usr/lib/systemd/system/inputplumber.service /etc/systemd/system/multi-u
 mkdir -p /var/lib
 ln -sfn /usr/lib/holo/pacmandb /var/lib/pacman 2>/dev/null || true
 
-# 7. Clean up deprecated plasma env scripts and broken local icon shadows
+# Clean up deprecated plasma env scripts and broken local icon shadows
 rm -f /etc/xdg/plasma-workspace/env/set-return-icon.sh 2>/dev/null || true
 if [ -d /home/steamos/.local/share/icons/hicolor ] && [ ! -f /home/steamos/.local/share/icons/hicolor/index.theme ]; then
     rm -rf /home/steamos/.local/share/icons/hicolor 2>/dev/null || true
 fi
 
-# 8. Rebuild desktop application database and icon caches
+# Rebuild desktop application database and icon caches
 chmod 0755 /home/steamos/Desktop/*.desktop 2>/dev/null || true
 chown -R steamos:steamos /home/steamos/Desktop 2>/dev/null || true
 if command -v update-desktop-database >/dev/null 2>&1; then
@@ -147,7 +154,7 @@ elif command -v kbuildsycoca5 >/dev/null 2>&1; then
     runuser -u steamos -- env XDG_MENU_PREFIX=plasma- kbuildsycoca5 --noincremental 2>/dev/null || true
 fi
 
-# 9. Remove installer desktop shortcuts if running from internal storage
+# Remove installer desktop shortcuts if running from internal storage
 ROOT_DEV="$(findmnt -no SOURCE / 2>/dev/null || true)"
 if [[ -n "$ROOT_DEV" && "$ROOT_DEV" != /dev/mmcblk* && "$ROOT_DEV" != /dev/loop* ]]; then
     rm -f /home/steamos/Desktop/reverie-installer.desktop \

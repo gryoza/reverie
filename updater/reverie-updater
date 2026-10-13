@@ -23,13 +23,20 @@ OS_RELEASE = "/etc/os-release"
 VERSION_FILE = "/etc/reverie/version"
 DEFAULT_REPO = "gryoza/reverie"
 DEFAULT_ESP = "/dev/disk/by-label/REVERIE"
-FALLBACK_ESP = "/dev/sda12"
 SNAPSHOT_SCRIPT = "/usr/lib/reverie/reverie-btrfs-snapshot.sh"
+LOG_PATH = "/var/log/reverie-update.log"
 
 
 def log(msg: str):
-    sys.stderr.write(f"[Reverie-Updater] {msg}\n")
+    line = f"[Reverie-Updater] {msg}\n"
+    sys.stderr.write(line)
     sys.stderr.flush()
+    try:
+        Path(LOG_PATH).parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {line}")
+    except Exception:
+        pass
 
 
 def emit_progress(pct: int):
@@ -165,10 +172,34 @@ def query_github_release(repo: str, channel: str = "stable") -> dict:
             return {}
     except urllib.error.HTTPError as e:
         log(f"GitHub API HTTP error {e.code}: {e.reason}")
-        return {}
     except Exception as e:
         log(f"GitHub API connection failed: {e}")
-        return {}
+
+    # Fallback: resolve latest release tag via GitHub web redirect (bypasses API rate limits)
+    try:
+        latest_url = f"https://github.com/{repo}/releases/latest"
+        req = urllib.request.Request(latest_url, headers={"User-Agent": "Reverie-Updater/1.0"})
+        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler)
+        with opener.open(req, timeout=10) as resp:
+            final_url = resp.geturl()
+            if "/releases/tag/" in final_url:
+                tag = final_url.split("/releases/tag/")[-1].strip().split("/")[0]
+                log(f"Resolved release tag via web redirect fallback: {tag}")
+                return {
+                    "tag_name": tag,
+                    "prerelease": False,
+                    "assets": [
+                        {
+                            "name": f"reverie-update-{tag}.tar.zst",
+                            "browser_download_url": f"https://github.com/{repo}/releases/download/{tag}/reverie-update-{tag}.tar.zst",
+                            "size": 0
+                        }
+                    ]
+                }
+    except Exception as fb_err:
+        log(f"Fallback release query failed: {fb_err}")
+
+    return {}
 
 
 def download_file(url: str, dest_path: Path, start_pct: int = 0, end_pct: int = 60) -> bool:
@@ -209,21 +240,55 @@ def verify_sha256(file_path: Path, expected_hash: str) -> bool:
     return actual == expected_hash.strip().lower()
 
 
+def find_esp_target() -> tuple:
+    """Finds ESP partition device node and existing mountpoint if already mounted."""
+    try:
+        out = subprocess.check_output(
+            ["lsblk", "-rnpo", "PATH,LABEL,MOUNTPOINT,FSTYPE"],
+            text=True, errors="replace"
+        )
+        for line in out.strip().splitlines():
+            parts = line.split()
+            if len(parts) >= 2:
+                dev = parts[0]
+                label = parts[1] if len(parts) > 1 else ""
+                mnt = parts[2] if len(parts) > 2 and parts[2].startswith("/") else ""
+                if label.upper() in ("REVERIE", "ESP"):
+                    return dev, mnt
+    except Exception:
+        pass
+
+    for cand in ("/dev/disk/by-label/REVERIE", "/dev/disk/by-label/ESP"):
+        if os.path.exists(cand):
+            return cand, ""
+
+    return None, ""
+
+
 def update_kernel_in_esp(esp_dev: str, new_kernel_path: Path) -> bool:
     if not new_kernel_path.is_file():
         return True
 
-    target_dev = esp_dev
-    if not os.path.exists(target_dev):
-        target_dev = FALLBACK_ESP
-    if not os.path.exists(target_dev):
-        log(f"ESP device {esp_dev} not found, skipping KERNEL partition update")
-        return True
+    target_dev, existing_mnt = find_esp_target()
+    if not target_dev and not existing_mnt:
+        if os.path.exists(esp_dev):
+            target_dev = esp_dev
+        else:
+            log("No ESP partition found, skipping KERNEL partition update")
+            return True
 
-    mnt = tempfile.mkdtemp(prefix="reverie-esp-")
+    if existing_mnt and os.path.isdir(existing_mnt):
+        mnt = existing_mnt
+        is_mounted = True
+    else:
+        mnt = tempfile.mkdtemp(prefix="reverie-esp-")
+        is_mounted = False
+
     try:
-        log(f"Mounting ESP partition {target_dev} at {mnt}...")
-        subprocess.run(["mount", target_dev, mnt], check=True)
+        if not is_mounted:
+            log(f"Mounting ESP partition {target_dev} at {mnt}...")
+            subprocess.run(["mount", target_dev, mnt], check=True)
+
         dest_kernel = Path(mnt) / "KERNEL"
         dest_bak = Path(mnt) / "KERNEL.BAK"
 
@@ -241,11 +306,12 @@ def update_kernel_in_esp(esp_dev: str, new_kernel_path: Path) -> bool:
         log("KERNEL partition updated successfully.")
         return True
     except Exception as e:
-        log(f"Failed to update KERNEL in ESP: {e}")
+        log(f"Warning: Failed to update KERNEL in ESP: {e}")
         return False
     finally:
-        subprocess.run(["umount", mnt], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        shutil.rmtree(mnt, ignore_errors=True)
+        if not is_mounted:
+            subprocess.run(["umount", mnt], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            shutil.rmtree(mnt, ignore_errors=True)
 
 
 def cmd_check(cfg: dict) -> int:
@@ -264,8 +330,9 @@ def cmd_check(cfg: dict) -> int:
         return 7
 
     if is_newer(tag, current):
+        clean_tag = tag.lstrip("vV")
         log(f"New update available: {tag} (current: {current})")
-        print(tag)
+        print(clean_tag)
         return 0
 
     log(f"System is up to date ({current}).")
@@ -344,7 +411,10 @@ def cmd_apply(cfg: dict, local_tar: str = None) -> int:
 
     # Extract update files to / (70% -> 88%)
     log("Extracting update package to rootfs...")
-    extract_temp = Path(tempfile.mkdtemp(prefix="reverie-unpack-"))
+    extract_temp = work_dir / "unpack"
+    if extract_temp.exists():
+        shutil.rmtree(extract_temp, ignore_errors=True)
+    extract_temp.mkdir(parents=True, exist_ok=True)
     try:
         # Extract into temp first to inspect contents
         subprocess.run(
@@ -438,23 +508,24 @@ def main():
     if any(a in ("check", "--check") for a in args):
         sys.exit(cmd_check(cfg))
 
-    if os.geteuid() != 0:
-        log("Elevating privileges to root...")
-        os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
-
-    if not args or any(a in ("apply", "update", "--apply") for a in args):
-        sys.exit(cmd_apply(cfg))
-    elif "test-update" in args:
+    if "test-update" in args:
         idx = args.index("test-update")
         tar_file = args[idx + 1] if idx + 1 < len(args) else ""
         if tar_file:
+            if os.geteuid() != 0:
+                log("Elevating privileges to root...")
+                os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
             sys.exit(cmd_apply(cfg, local_tar=tar_file))
         else:
             log("Missing tar path for test-update")
             sys.exit(7)
-    else:
-        log(f"Unknown argument: {args[0] if args else ''}")
-        sys.exit(7)
+
+    # Any other arguments (apply, update, stage, now, etc. or no args) apply update
+    if os.geteuid() != 0:
+        log("Elevating privileges to root...")
+        os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
+
+    sys.exit(cmd_apply(cfg))
 
 
 if __name__ == "__main__":

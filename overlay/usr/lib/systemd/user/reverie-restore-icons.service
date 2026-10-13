@@ -1,0 +1,11 @@
+[Unit]
+Description=Reverie OS Restore Game Icons
+After=plasma-core.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/reverie/reverie-restore-game-icons
+RemainAfterExit=yes
+
+[Install]
+WantedBy=plasma-workspace.target

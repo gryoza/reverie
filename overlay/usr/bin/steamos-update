@@ -87,6 +87,10 @@ for p in sys.argv[1:]:
 PY
 }
 
+LOG_FILE=/var/log/reverie-update.log
+mkdir -p /var/log 2>/dev/null || true
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] steamos-update invoked with: $* (uid: $(id -u))" >> "$LOG_FILE" 2>/dev/null || true
+
 clean_args=()
 for arg in "$@"; do
   case "$arg" in
@@ -102,12 +106,16 @@ done
 
 oobe=0
 if [[ ! -f "$LOGINUSERS" ]] || ! grep -qs '"AccountName"' "$LOGINUSERS"; then
-  oobe=1
+  if [[ ! -f "$MARKER" && ! -f "$USER_MARKER" ]]; then
+    oobe=1
+  fi
 fi
 
-# Post-OOBE: delegate check/apply to Reverie OTA updater
-if [[ "$oobe" -eq 0 && -x /usr/bin/reverie-updater ]]; then
-  exec /usr/bin/reverie-updater "${clean_args[@]}"
+# Post-OOBE (or CLI invocation): delegate check/apply to Reverie OTA updater
+if [[ -x /usr/bin/reverie-updater ]]; then
+  if [[ "$oobe" -eq 0 || -t 0 || -t 1 ]]; then
+    exec /usr/bin/reverie-updater "${clean_args[@]}"
+  fi
 fi
 
 # Pre-OOBE handling

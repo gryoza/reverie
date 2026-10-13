@@ -60,6 +60,10 @@ echo "Mounted rootfs at ${MNT_DIR}"
 echo "=== Step 1b: Sanitizing FAT32 partition (partition 1) ==="
 MNT_FAT32=$(mktemp -d -t reverie_fat32.XXXXXX)
 if mount -t vfat "${LOOP_DEV}p1" "${MNT_FAT32}" 2>/dev/null; then
+    if [[ -f "${REPO_DIR}/boot/KERNEL" ]]; then
+        echo "Installing updated KERNEL binary to ESP..."
+        cp -f "${REPO_DIR}/boot/KERNEL" "${MNT_FAT32}/KERNEL"
+    fi
     mkdir -p "${MNT_FAT32}/logs"
     rm -f "${MNT_FAT32}/reverie-boot-log.txt" 2>/dev/null || true
     cat << 'README' > "${MNT_FAT32}/logs/README.txt"
@@ -118,6 +122,19 @@ rm -rf "${MNT_DIR}/usr/share/steamos-odin/MangoHud" \
 echo "=== Step 3: Injecting updated system overlays ==="
 cp -a "${REPO_DIR}/overlay/"* "${MNT_DIR}/"
 
+# 4b. Inject kernel modules and firmware
+if [[ -d "${REPO_DIR}/modules" ]]; then
+    echo "Installing updated kernel modules..."
+    mkdir -p "${MNT_DIR}/usr/lib/modules"
+    cp -a "${REPO_DIR}/modules/"* "${MNT_DIR}/usr/lib/modules/"
+fi
+
+if [[ -d "${REPO_DIR}/firmware" ]]; then
+    echo "Installing updated firmware blobs..."
+    mkdir -p "${MNT_DIR}/usr/lib/firmware"
+    cp -a "${REPO_DIR}/firmware/"* "${MNT_DIR}/usr/lib/firmware/"
+fi
+
 # 5. Install updated updater and installer
 echo "=== Step 4: Installing updated installer and updater ==="
 mkdir -p "${MNT_DIR}/usr/bin"
@@ -157,6 +174,7 @@ ln -sf /etc/systemd/system/ayaneo-keys.service "${MNT_DIR}/etc/systemd/system/ba
 ln -sf /usr/lib/systemd/system/reverie-boot-debug.service "${MNT_DIR}/etc/systemd/system/multi-user.target.wants/reverie-boot-debug.service" 2>/dev/null || true
 mkdir -p "${MNT_DIR}/etc/systemd/system/graphical.target.wants"
 ln -sf /usr/lib/systemd/system/reverie-boot-debug-late.service "${MNT_DIR}/etc/systemd/system/graphical.target.wants/reverie-boot-debug-late.service" 2>/dev/null || true
+ln -sf /usr/lib/systemd/system/inputplumber.service "${MNT_DIR}/etc/systemd/system/multi-user.target.wants/inputplumber.service" 2>/dev/null || true
 mkdir -p "${MNT_DIR}/usr/lib/systemd/user/gamescope-session.target.wants"
 ln -sf ../steamos-powerbuttond.service "${MNT_DIR}/usr/lib/systemd/user/gamescope-session.target.wants/steamos-powerbuttond.service" 2>/dev/null || true
 
@@ -220,9 +238,16 @@ rm -f "${MNT_DIR}/home/steamos/.local/state/dolphinstaterc" \
       "${MNT_DIR}/home/steamos/.local/share/user-places.xbel.bak" \
       "${MNT_DIR}/home/steamos/.local/share/user-places.xbel.tbcache" \
       "${MNT_DIR}/etc/xdg/plasma-workspace/env/set-return-icon.sh" \
-      "${MNT_DIR}/home/steamos/.cache/ksycoca"* \
-      "${MNT_DIR}/home/steamos/.cache/icon-cache"* 2>/dev/null || true
+      "${MNT_DIR}/home/steamos/.cache/ksycoca"* 2>/dev/null || true
 rm -rf "${MNT_DIR}/home/steamos/.local/share/icons/hicolor" 2>/dev/null || true
+
+# Rebuild desktop application database and icon caches
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "${MNT_DIR}/usr/share/applications" 2>/dev/null || true
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t "${MNT_DIR}/usr/share/icons/hicolor" 2>/dev/null || true
+fi
 
 # 8.6. Remove legacy project names, obsolete scripts, and legacy debuggers
 rm -rf "${MNT_DIR}/home/steamos/homebrew/data/Mononoke-Power" \
@@ -268,9 +293,8 @@ rm -f "${MNT_DIR}/var/lib/overlays/etc/upper/ssh/ssh_host_"* \
       "${MNT_DIR}/etc/ssh/ssh_host_"* 2>/dev/null || true
 
 # 8.9. Remove dead ALSA UCM2 profiles and phantom fstab mounts
-rm -f "${MNT_DIR}/usr/share/alsa/ucm2/conf.d/sm8550/AYN-Thor.conf" \
-      "${MNT_DIR}/usr/share/alsa/ucm2/conf.d/sm8550/ayn-AYNThor-.conf" \
-      "${MNT_DIR}/usr/share/alsa/ucm2/conf.d/sm8550/SM8550-HDK.conf" 2>/dev/null || true
+rm -f "${MNT_DIR}/usr/share/alsa/ucm2/conf.d/sm8550/SM8550-HDK.conf" 2>/dev/null || true
+ln -sfn /dev/null "${MNT_DIR}/etc/systemd/system/deckard-boot-images.service" 2>/dev/null || true
 sed -i "/PARTLABEL=syspersist/d" "${MNT_DIR}/etc/fstab" 2>/dev/null || true
 
 # 8.10. Remove stray root video device symlinks and broken Steam runtime video symlinks
@@ -290,6 +314,7 @@ chown 0:0 "${MNT_DIR}" "${MNT_DIR}/usr" "${MNT_DIR}/usr/bin" "${MNT_DIR}/usr/lib
 chmod 0755 "${MNT_DIR}/usr/lib/reverie/"* 2>/dev/null || true
 chmod 0755 "${MNT_DIR}/usr/lib/steamos/"* 2>/dev/null || true
 chmod 0755 "${MNT_DIR}/usr/local/bin/"* 2>/dev/null || true
+chmod 0755 "${MNT_DIR}/usr/bin/inputplumber" 2>/dev/null || true
 chmod 0755 "${MNT_DIR}/home/steamos/Desktop/"*.desktop 2>/dev/null || true
 chmod -R 0755 "${MNT_DIR}/usr/share/icons" "${MNT_DIR}/usr/share/applications" 2>/dev/null || true
 chown -R 0:0 "${MNT_DIR}/usr/share/icons" "${MNT_DIR}/usr/share/applications" 2>/dev/null || true

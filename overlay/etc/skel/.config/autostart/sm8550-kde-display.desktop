@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=SM8550 KDE Display Setup
+Exec=/usr/lib/steamos/sm8550-kde-display-hotplug
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2

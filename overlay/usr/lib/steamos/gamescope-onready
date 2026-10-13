@@ -61,7 +61,7 @@ for _i in $(seq 1 25); do
 done
 
 if [[ -f /etc/reverie/debug-enabled ]]; then
-  (sleep 4 && { wpctl status; echo "=== SINKS ==="; pactl list short sinks; echo "=== CARDS ==="; pactl list cards; } > /var/log/reverie-audio.log 2>&1) &
+  (sleep 4 && { wpctl status; echo "=== SINKS ==="; pactl list short sinks; echo "=== CARDS ==="; pactl list cards; } > /tmp/reverie-audio.log 2>&1) &
 fi
 
 if [[ -n "${GAMESCOPE_READY_NOTIFY_SOCKET:-}" ]]; then
